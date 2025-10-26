@@ -1,13 +1,13 @@
 {
   "name": "apitypescript",
   "version": "1.0.0",
-  "description": "Api backend",
+  "description": "API backend em TypeScript",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only ./src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
@@ -26,4 +26,5 @@
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }
+  
 }

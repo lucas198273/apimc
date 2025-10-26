@@ -6,7 +6,7 @@ import {
   deletePedido,
   getPedidoByNumeroSeq,
   getPedidosFiltrados
-} from '../../lib/pedidosService';
+} from '../lib/pedidosService';
 
 const router = Router();
 

@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deletePedido = deletePedido;
 exports.getNextNumeroPedido = getNextNumeroPedido;
@@ -30,111 +21,101 @@ function formatDate(dateString) {
 }
 /* ----------------------- CRUD de pedidos ----------------------- */
 // Deletar pedido pelo ID
-function deletePedido(id) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { error } = yield supabase.from('dbpedidos').delete().eq('id', id);
-        if (error)
-            throw new Error(`Erro ao deletar pedido: ${error.message}`);
-        return { message: 'Pedido removido com sucesso.' };
-    });
+async function deletePedido(id) {
+    const { error } = await supabase.from('dbpedidos').delete().eq('id', id);
+    if (error)
+        throw new Error(`Erro ao deletar pedido: ${error.message}`);
+    return { message: 'Pedido removido com sucesso.' };
 }
 // Retorna o próximo número sequencial
-function getNextNumeroPedido() {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a;
-        const { data, error } = yield supabase
-            .from('dbpedidos')
-            .select('numero_seq')
-            .order('numero_seq', { ascending: false })
-            .limit(1);
-        if (error)
-            throw error;
-        return ((_a = data === null || data === void 0 ? void 0 : data[0]) === null || _a === void 0 ? void 0 : _a.numero_seq) ? data[0].numero_seq + 1 : 1;
-    });
+async function getNextNumeroPedido() {
+    const { data, error } = await supabase
+        .from('dbpedidos')
+        .select('numero_seq')
+        .order('numero_seq', { ascending: false })
+        .limit(1);
+    if (error)
+        throw error;
+    return data?.[0]?.numero_seq ? data[0].numero_seq + 1 : 1;
 }
 // Criar pedido com número sequencial automático
-function createPedidoComNumero(novoPedido) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const numero_seq = yield getNextNumeroPedido();
-        const { data, error } = yield supabase
-            .from('dbpedidos')
-            .insert([Object.assign(Object.assign({}, novoPedido), { numero_seq })])
-            .select('*')
-            .single();
-        if (error)
-            throw error;
-        return Object.assign(Object.assign({}, data), { data: formatDate(data.data) });
-    });
+async function createPedidoComNumero(novoPedido) {
+    const numero_seq = await getNextNumeroPedido();
+    const { data, error } = await supabase
+        .from('dbpedidos')
+        .insert([{ ...novoPedido, numero_seq }])
+        .select('*')
+        .single();
+    if (error)
+        throw error;
+    return { ...data, data: formatDate(data.data) };
 }
 // Criar pedido normalmente (caso já tenha número definido)
-function createPedido(novoPedido) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { data, error } = yield supabase
-            .from('dbpedidos')
-            .insert([novoPedido])
-            .select('*')
-            .single();
-        if (error)
-            throw error;
-        return Object.assign(Object.assign({}, data), { data: formatDate(data.data) });
-    });
+async function createPedido(novoPedido) {
+    const { data, error } = await supabase
+        .from('dbpedidos')
+        .insert([novoPedido])
+        .select('*')
+        .single();
+    if (error)
+        throw error;
+    return { ...data, data: formatDate(data.data) };
 }
 // Atualizar pedido pelo número sequencial
-function updatePedidoByNumeroSeq(numero_seq, camposAtualizados) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { data, error } = yield supabase
-            .from('dbpedidos')
-            .update(camposAtualizados)
-            .eq('numero_seq', numero_seq)
-            .select('*')
-            .single();
-        if (error)
-            throw new Error(`Erro ao atualizar pedido: ${error.message}`);
-        return Object.assign(Object.assign({}, data), { data: formatDate(data.data) });
-    });
+async function updatePedidoByNumeroSeq(numero_seq, camposAtualizados) {
+    const { data, error } = await supabase
+        .from('dbpedidos')
+        .update(camposAtualizados)
+        .eq('numero_seq', numero_seq)
+        .select('*')
+        .single();
+    if (error)
+        throw new Error(`Erro ao atualizar pedido: ${error.message}`);
+    return { ...data, data: formatDate(data.data) };
 }
 // Buscar pedido específico pelo número sequencial
-function getPedidoByNumeroSeq(numero_seq) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { data, error } = yield supabase
-            .from('dbpedidos')
-            .select('*')
-            .eq('numero_seq', numero_seq)
-            .single();
-        if (error)
-            throw new Error(`Erro ao buscar pedido: ${error.message}`);
-        return data ? Object.assign(Object.assign({}, data), { data: formatDate(data.data) }) : null;
-    });
+async function getPedidoByNumeroSeq(numero_seq) {
+    const { data, error } = await supabase
+        .from('dbpedidos')
+        .select('*')
+        .eq('numero_seq', numero_seq)
+        .single();
+    if (error)
+        throw new Error(`Erro ao buscar pedido: ${error.message}`);
+    return data ? { ...data, data: formatDate(data.data) } : null;
 }
 // Buscar todos os pedidos (ordenados por data)
-function getPedidos() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { data, error } = yield supabase
-            .from('dbpedidos')
-            .select('*')
-            .order('data', { ascending: false });
-        if (error)
-            throw new Error(`Erro ao buscar pedidos: ${error.message}`);
-        return data.map(order => (Object.assign(Object.assign({}, order), { data: formatDate(order.data) })));
-    });
+async function getPedidos() {
+    const { data, error } = await supabase
+        .from('dbpedidos')
+        .select('*')
+        .order('data', { ascending: false });
+    if (error)
+        throw new Error(`Erro ao buscar pedidos: ${error.message}`);
+    return data.map(order => ({
+        ...order,
+        data: formatDate(order.data),
+    }));
 }
 /* ----------------------- FILTROS ----------------------- */
 // Filtrar por número, nome do cliente ou status
-function getPedidosFiltrados(filtros) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let query = supabase.from('dbpedidos').select('*').order('data', { ascending: false });
-        if (filtros.numero_seq) {
-            query = query.eq('numero_seq', filtros.numero_seq);
-        }
-        if (filtros.nome_cliente) {
-            query = query.ilike('nome_cliente', `%${filtros.nome_cliente}%`);
-        }
-        if (filtros.status) {
-            query = query.ilike('status', `%${filtros.status}%`);
-        }
-        const { data, error } = yield query;
-        if (error)
-            throw new Error(`Erro ao aplicar filtros: ${error.message}`);
-        return data.map(order => (Object.assign(Object.assign({}, order), { data: formatDate(order.data) })));
-    });
+async function getPedidosFiltrados(filtros) {
+    let query = supabase.from('dbpedidos').select('*').order('data', { ascending: false });
+    if (filtros.numero_seq) {
+        query = query.eq('numero_seq', filtros.numero_seq);
+    }
+    if (filtros.nome_cliente) {
+        query = query.ilike('nome_cliente', `%${filtros.nome_cliente}%`);
+    }
+    if (filtros.status) {
+        query = query.ilike('status', `%${filtros.status}%`);
+    }
+    const { data, error } = await query;
+    if (error)
+        throw new Error(`Erro ao aplicar filtros: ${error.message}`);
+    return data.map(order => ({
+        ...order,
+        data: formatDate(order.data),
+    }));
 }
+//# sourceMappingURL=pedidosService.js.map
