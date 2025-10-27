@@ -14,10 +14,15 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseKey);
 /* ----------------------- Funções auxiliares ----------------------- */
 function formatDate(dateString) {
+    if (!dateString)
+        return 'Data indisponível';
     const d = new Date(dateString);
     return isNaN(d.getTime())
         ? 'Data inválida'
-        : d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false });
+        : d.toLocaleString('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            hour12: false,
+        });
 }
 /* ----------------------- CRUD de pedidos ----------------------- */
 // Deletar pedido pelo ID
@@ -41,9 +46,11 @@ async function getNextNumeroPedido() {
 // Criar pedido com número sequencial automático
 async function createPedidoComNumero(novoPedido) {
     const numero_seq = await getNextNumeroPedido();
+    // Define a data local do servidor no formato ISO
+    const dataAtual = new Date().toISOString();
     const { data, error } = await supabase
         .from('dbpedidos')
-        .insert([{ ...novoPedido, numero_seq }])
+        .insert([{ ...novoPedido, numero_seq, data: dataAtual }])
         .select('*')
         .single();
     if (error)
@@ -52,9 +59,10 @@ async function createPedidoComNumero(novoPedido) {
 }
 // Criar pedido normalmente (caso já tenha número definido)
 async function createPedido(novoPedido) {
+    const dataAtual = new Date().toISOString();
     const { data, error } = await supabase
         .from('dbpedidos')
-        .insert([novoPedido])
+        .insert([{ ...novoPedido, data: dataAtual }])
         .select('*')
         .single();
     if (error)

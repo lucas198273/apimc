@@ -5,13 +5,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv/config");
 const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors")); // <-- importar cors
+const cors_1 = __importDefault(require("cors"));
 const pedidos_1 = __importDefault(require("./routes/pedidos"));
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
-// Configurar CORS
+const allowedOrigins = [
+    'http://localhost:5173',
+    process.env.FRONTEND_URL
+];
 app.use((0, cors_1.default)({
-    origin: 'http://localhost:5173', // endereço do seu front-end
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));

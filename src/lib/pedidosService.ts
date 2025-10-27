@@ -21,12 +21,17 @@ export interface Order {
 }
 
 /* ----------------------- Funções auxiliares ----------------------- */
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return 'Data indisponível';
   const d = new Date(dateString);
   return isNaN(d.getTime())
     ? 'Data inválida'
-    : d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false });
+    : d.toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour12: false,
+      });
 }
+
 
 /* ----------------------- CRUD de pedidos ----------------------- */
 
@@ -48,13 +53,16 @@ export async function getNextNumeroPedido(): Promise<number> {
   if (error) throw error;
   return data?.[0]?.numero_seq ? data[0].numero_seq + 1 : 1;
 }
-
 // Criar pedido com número sequencial automático
 export async function createPedidoComNumero(novoPedido: Partial<Order>) {
   const numero_seq = await getNextNumeroPedido();
+
+  // Define a data local do servidor no formato ISO
+  const dataAtual = new Date().toISOString();
+
   const { data, error } = await supabase
     .from('dbpedidos')
-    .insert([{ ...novoPedido, numero_seq }])
+    .insert([{ ...novoPedido, numero_seq, data: dataAtual }])
     .select('*')
     .single();
 
@@ -64,15 +72,18 @@ export async function createPedidoComNumero(novoPedido: Partial<Order>) {
 
 // Criar pedido normalmente (caso já tenha número definido)
 export async function createPedido(novoPedido: Partial<Order>) {
+  const dataAtual = new Date().toISOString();
+
   const { data, error } = await supabase
     .from('dbpedidos')
-    .insert([novoPedido])
+    .insert([{ ...novoPedido, data: dataAtual }])
     .select('*')
     .single();
 
   if (error) throw error;
   return { ...data, data: formatDate(data.data) };
 }
+
 // Atualizar pedido pelo número sequencial
 export async function updatePedidoByNumeroSeq(numero_seq: number, camposAtualizados: Partial<Order>) {
   const { data, error } = await supabase
