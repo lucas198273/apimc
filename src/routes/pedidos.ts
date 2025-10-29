@@ -86,12 +86,11 @@ router.post('/dbpedidos', async (req: Request, res: Response) => {
 });
 
 /* ----------------------- FILTRAR PEDIDOS ----------------------- */
-
+/* ----------------------- FILTRAR PEDIDOS ----------------------- */
 router.get('/dbpedidos/filtrar', async (req: Request, res: Response) => {
   try {
-    const { numero_seq, nome_cliente, status } = req.query;
+    const { numero_seq, nome_cliente, status, data_inicio, data_fim } = req.query;
 
-    // Valida status para ser um OrderStatus válido
     const validStatuses: OrderStatus[] = [
       'aguardando confirmação',
       'pedido sendo preparado',
@@ -102,9 +101,12 @@ router.get('/dbpedidos/filtrar', async (req: Request, res: Response) => {
     const filtros = {
       numero_seq: numero_seq ? Number(numero_seq) : undefined,
       nome_cliente: nome_cliente ? String(nome_cliente) : undefined,
-      status: status && validStatuses.includes(String(status) as OrderStatus)
-        ? (status as OrderStatus)
-        : undefined,
+      status:
+        status && validStatuses.includes(String(status) as OrderStatus)
+          ? (status as OrderStatus)
+          : undefined,
+      data_inicio: data_inicio ? String(data_inicio) : undefined,
+      data_fim: data_fim ? String(data_fim) : undefined,
     };
 
     const pedidos = await getPedidosFiltrados(filtros);
@@ -113,5 +115,6 @@ router.get('/dbpedidos/filtrar', async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Erro ao buscar pedidos filtrados', error });
   }
 });
+
 
 export default router;
