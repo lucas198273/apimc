@@ -71,10 +71,10 @@ router.post('/dbpedidos', async (req, res) => {
     }
 });
 /* ----------------------- FILTRAR PEDIDOS ----------------------- */
+/* ----------------------- FILTRAR PEDIDOS ----------------------- */
 router.get('/dbpedidos/filtrar', async (req, res) => {
     try {
-        const { numero_seq, nome_cliente, status } = req.query;
-        // Valida status para ser um OrderStatus válido
+        const { numero_seq, nome_cliente, status, data_inicio, data_fim } = req.query;
         const validStatuses = [
             'aguardando confirmação',
             'pedido sendo preparado',
@@ -87,6 +87,8 @@ router.get('/dbpedidos/filtrar', async (req, res) => {
             status: status && validStatuses.includes(String(status))
                 ? status
                 : undefined,
+            data_inicio: data_inicio ? String(data_inicio) : undefined,
+            data_fim: data_fim ? String(data_fim) : undefined,
         };
         const pedidos = await (0, pedidosService_1.getPedidosFiltrados)(filtros);
         res.json(pedidos);
