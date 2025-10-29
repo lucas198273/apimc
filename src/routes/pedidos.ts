@@ -7,6 +7,11 @@ import {
   getPedidoByNumeroSeq,
   getPedidosFiltrados
 } from '../lib/pedidosService';
+export type OrderStatus =
+  | 'aguardando confirmação'
+  | 'pedido sendo preparado'
+  | 'pedido pronto'
+  | 'cancelado';
 
 const router = Router();
 
@@ -81,14 +86,25 @@ router.post('/dbpedidos', async (req: Request, res: Response) => {
 });
 
 /* ----------------------- FILTRAR PEDIDOS ----------------------- */
+
 router.get('/dbpedidos/filtrar', async (req: Request, res: Response) => {
   try {
     const { numero_seq, nome_cliente, status } = req.query;
 
+    // Valida status para ser um OrderStatus válido
+    const validStatuses: OrderStatus[] = [
+      'aguardando confirmação',
+      'pedido sendo preparado',
+      'pedido pronto',
+      'cancelado',
+    ];
+
     const filtros = {
       numero_seq: numero_seq ? Number(numero_seq) : undefined,
       nome_cliente: nome_cliente ? String(nome_cliente) : undefined,
-      status: status ? String(status) : undefined,
+      status: status && validStatuses.includes(String(status) as OrderStatus)
+        ? (status as OrderStatus)
+        : undefined,
     };
 
     const pedidos = await getPedidosFiltrados(filtros);
