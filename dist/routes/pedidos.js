@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// src/routes/pedidosRoutes.ts
 const express_1 = require("express");
 const pedidosService_1 = require("../lib/pedidosService");
 const router = (0, express_1.Router)();
@@ -22,26 +23,24 @@ router.put('/dbpedidos/numero/:numero_seq', async (req, res) => {
         const numeroSeq = Number(req.params.numero_seq);
         if (isNaN(numeroSeq))
             return res.status(400).json({ message: 'Número do pedido inválido.' });
-        const camposAtualizados = req.body;
-        const pedidoAtualizado = await (0, pedidosService_1.updatePedidoByNumeroSeq)(numeroSeq, camposAtualizados);
-        if (!pedidoAtualizado)
-            return res.status(404).json({ message: 'Pedido não encontrado.' });
+        const pedidoAtualizado = await (0, pedidosService_1.updatePedidoByNumeroSeq)(numeroSeq, req.body);
         res.json({ message: 'Pedido atualizado com sucesso.', pedido: pedidoAtualizado });
     }
     catch (error) {
-        res.status(500).json({ message: 'Erro ao atualizar pedido', error });
+        res.status(500).json({ message: error.message || 'Erro ao atualizar pedido', error });
     }
 });
-/* ----------------------- BUSCAR PEDIDOS ----------------------- */
+/* ----------------------- BUSCAR TODOS OS PEDIDOS ----------------------- */
 router.get('/dbpedidos', async (_req, res) => {
     try {
         const pedidos = await (0, pedidosService_1.getPedidos)();
         res.json(pedidos);
     }
     catch (error) {
-        res.status(500).json({ message: 'Erro ao obter pedidos', error });
+        res.status(500).json({ message: error.message || 'Erro ao obter pedidos', error });
     }
 });
+/* ----------------------- BUSCAR PEDIDO POR NUMERO_SEQ ----------------------- */
 router.get('/dbpedidos/numero/:numero_seq', async (req, res) => {
     try {
         const numeroSeq = Number(req.params.numero_seq);
@@ -53,48 +52,28 @@ router.get('/dbpedidos/numero/:numero_seq', async (req, res) => {
         res.json(pedido);
     }
     catch (error) {
-        res.status(500).json({ message: 'Erro ao buscar pedido', error });
+        res.status(500).json({ message: error.message || 'Erro ao buscar pedido', error });
     }
 });
-/* ----------------------- CRIAR PEDIDO AUTOMÁTICO ----------------------- */
+/* ----------------------- CRIAR PEDIDO ----------------------- */
 router.post('/dbpedidos', async (req, res) => {
     try {
-        const novoPedido = req.body;
-        if (!novoPedido.pedido || !novoPedido.total || !novoPedido.nome_cliente) {
-            return res.status(400).json({ message: 'Campos obrigatórios faltando.' });
-        }
-        const pedidoCriado = await (0, pedidosService_1.createPedidoComNumero)(novoPedido);
+        const pedidoCriado = await (0, pedidosService_1.createPedidoComNumero)(req.body);
         res.status(201).json(pedidoCriado);
     }
     catch (error) {
-        res.status(500).json({ message: 'Erro ao criar pedido automaticamente', error });
+        res.status(500).json({ message: error.message || 'Erro ao criar pedido', error });
     }
 });
 /* ----------------------- FILTRAR PEDIDOS ----------------------- */
-/* ----------------------- FILTRAR PEDIDOS ----------------------- */
 router.get('/dbpedidos/filtrar', async (req, res) => {
     try {
-        const { numero_seq, nome_cliente, status, data_inicio, data_fim } = req.query;
-        const validStatuses = [
-            'aguardando confirmação',
-            'pedido sendo preparado',
-            'pedido pronto',
-            'cancelado',
-        ];
-        const filtros = {
-            numero_seq: numero_seq ? Number(numero_seq) : undefined,
-            nome_cliente: nome_cliente ? String(nome_cliente) : undefined,
-            status: status && validStatuses.includes(String(status))
-                ? status
-                : undefined,
-            data_inicio: data_inicio ? String(data_inicio) : undefined,
-            data_fim: data_fim ? String(data_fim) : undefined,
-        };
+        const filtros = req.query;
         const pedidos = await (0, pedidosService_1.getPedidosFiltrados)(filtros);
         res.json(pedidos);
     }
     catch (error) {
-        res.status(500).json({ message: 'Erro ao buscar pedidos filtrados', error });
+        res.status(500).json({ message: error.message || 'Erro ao filtrar pedidos', error });
     }
 });
 exports.default = router;
