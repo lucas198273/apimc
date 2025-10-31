@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.loginUsuario = loginUsuario;
-exports.criarUsuario = criarUsuario;
+// src/services/authService.ts
 const supabaseClient_1 = require("../lib/supabaseClient");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_temporario";
@@ -12,16 +12,15 @@ const JWT_SECRET = process.env.JWT_SECRET || "segredo_temporario";
 async function loginUsuario(username, senha) {
     const { data, error } = await supabaseClient_1.supabase
         .from("usuarios")
-        .select("*")
+        .select("id, username, senha")
         .eq("username", username)
+        .limit(1)
         .single();
     if (error || !data)
         throw new Error("Usuário não encontrado");
     const usuario = data;
-    // Compara senha diretamente
-    if (senha !== usuario.senha)
+    if (usuario.senha !== senha)
         throw new Error("Senha incorreta");
-    // Gera token JWT
     const token = jsonwebtoken_1.default.sign({ id: usuario.id, username: usuario.username }, JWT_SECRET, { expiresIn: "8h" });
     return {
         token,
@@ -30,16 +29,5 @@ async function loginUsuario(username, senha) {
             username: usuario.username,
         },
     };
-}
-/* ---------------- CRIAR USUÁRIO ---------------- */
-async function criarUsuario(username, senha) {
-    const { data, error } = await supabaseClient_1.supabase
-        .from("usuarios")
-        .insert([{ username, senha }]) // insere direto a senha
-        .select("*")
-        .single();
-    if (error)
-        throw new Error(`Erro ao criar usuário: ${error.message}`);
-    return data;
 }
 //# sourceMappingURL=authService.js.map

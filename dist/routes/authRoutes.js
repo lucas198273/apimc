@@ -19,18 +19,5 @@ router.post("/login", async (req, res) => {
     }
 });
 /* ---------------------- REGISTRO ---------------------- */
-router.post("/register", async (req, res) => {
-    const { username, senha } = req.body;
-    if (!username || !senha) {
-        return res.status(400).json({ error: "Usuário e senha são obrigatórios." });
-    }
-    try {
-        const result = await (0, authService_1.criarUsuario)(username, senha);
-        res.json({ message: "Usuário criado com sucesso!", result });
-    }
-    catch (err) {
-        res.status(400).json({ error: err.message });
-    }
-});
 exports.default = router;
 //# sourceMappingURL=authRoutes.js.map
