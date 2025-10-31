@@ -1,5 +1,4 @@
 import { supabase } from "../lib/supabaseClient";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_temporario";
@@ -7,7 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "segredo_temporario";
 interface User {
   id: string;
   username: string;
-  password_hash: string;
+  senha: string; // agora usamos texto simples
 }
 
 /* ---------------- LOGIN ---------------- */
@@ -22,9 +21,8 @@ export async function loginUsuario(username: string, senha: string) {
 
   const usuario = data as User;
 
-  // Compara a senha digitada com o hash do banco
-  const senhaValida = await bcrypt.compare(senha, usuario.password_hash);
-  if (!senhaValida) throw new Error("Senha incorreta");
+  // Compara senha diretamente
+  if (senha !== usuario.senha) throw new Error("Senha incorreta");
 
   // Gera token JWT
   const token = jwt.sign(
@@ -44,11 +42,9 @@ export async function loginUsuario(username: string, senha: string) {
 
 /* ---------------- CRIAR USUÁRIO ---------------- */
 export async function criarUsuario(username: string, senha: string) {
-  const password_hash = await bcrypt.hash(senha, 10);
-
   const { data, error } = await supabase
     .from("usuarios")
-    .insert([{ username, password_hash }])
+    .insert([{ username, senha }]) // insere direto a senha
     .select("*")
     .single();
 
