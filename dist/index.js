@@ -13,8 +13,10 @@ const port = process.env.PORT || 3000;
 // 🔐 Domínios permitidos (frontend local + produção)
 const allowedOrigins = [
     'http://localhost:5173',
-    process.env.FRONTEND_URL,
-];
+    'http://localhost:5174',
+    process.env.FRONTEND_URL_PND,
+    process.env.FRONTEND_URLS_CLI,
+].filter(Boolean); // remove undefined caso alguma não esteja setada
 // ⚙️ Configuração do CORS
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
