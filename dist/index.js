@@ -30,6 +30,7 @@ app.use((0, cors_1.default)({
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
 }));
+app.use(express_1.default.json());
 // ⚙️ Configuração do CORS (ajustada para Render)
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", allowedOrigins.includes(req.headers.origin) ? req.headers.origin : "null");

@@ -28,6 +28,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
+app.use(express.json());
 
 // ⚙️ Configuração do CORS (ajustada para Render)
 app.use((req, res, next) => {

@@ -210,7 +210,7 @@ export async function getPedidos(
   }
 
   const selectFields =
-    'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo';
+    'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao';
 
   const { data, error } = await supabase
     .from('dbpedidos')

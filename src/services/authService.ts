@@ -12,18 +12,22 @@ interface User {
 
 /* ---------------- LOGIN ---------------- */
 export async function loginUsuario(username: string, senha: string) {
+  if (!username || !senha) throw new Error("Usuário e senha são obrigatórios.");
+
   const { data, error } = await supabase
     .from("usuarios")
     .select("id, username, senha")
     .eq("username", username)
-    .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) throw new Error("Usuário não encontrado");
+  if (error || !data) throw new Error("Usuário não encontrado.");
 
   const usuario = data as User;
 
-  if (usuario.senha !== senha) throw new Error("Senha incorreta");
+  // ⚠️ Comparação simples temporária (sem bcrypt)
+  if (usuario.senha !== senha) {
+    throw new Error("Senha incorreta.");
+  }
 
   const token = jwt.sign(
     { id: usuario.id, username: usuario.username },
@@ -32,6 +36,7 @@ export async function loginUsuario(username: string, senha: string) {
   );
 
   return {
+    message: "Login realizado com sucesso.",
     token,
     user: {
       id: usuario.id,
@@ -39,4 +44,3 @@ export async function loginUsuario(username: string, senha: string) {
     },
   };
 }
-

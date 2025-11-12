@@ -143,7 +143,7 @@ async function getPedidos(page = 1, limit = 50, opts) {
         if (cached)
             return cached;
     }
-    const selectFields = 'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo';
+    const selectFields = 'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao';
     const { data, error } = await exports.supabase
         .from('dbpedidos')
         .select(selectFields)

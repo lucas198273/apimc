@@ -10,19 +10,23 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_temporario";
 /* ---------------- LOGIN ---------------- */
 async function loginUsuario(username, senha) {
+    if (!username || !senha)
+        throw new Error("Usuário e senha são obrigatórios.");
     const { data, error } = await supabaseClient_1.supabase
         .from("usuarios")
         .select("id, username, senha")
         .eq("username", username)
-        .limit(1)
-        .single();
+        .maybeSingle();
     if (error || !data)
-        throw new Error("Usuário não encontrado");
+        throw new Error("Usuário não encontrado.");
     const usuario = data;
-    if (usuario.senha !== senha)
-        throw new Error("Senha incorreta");
+    // ⚠️ Comparação simples temporária (sem bcrypt)
+    if (usuario.senha !== senha) {
+        throw new Error("Senha incorreta.");
+    }
     const token = jsonwebtoken_1.default.sign({ id: usuario.id, username: usuario.username }, JWT_SECRET, { expiresIn: "8h" });
     return {
+        message: "Login realizado com sucesso.",
         token,
         user: {
             id: usuario.id,
