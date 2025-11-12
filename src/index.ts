@@ -29,7 +29,17 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
+// ⚙️ Configuração do CORS (ajustada para Render)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", allowedOrigins.includes(req.headers.origin) ? req.headers.origin : "null");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Credentials", "true");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // 🧩 Rotas principais
 app.use('/api', pedidosRouter);
