@@ -28,6 +28,9 @@ export interface OrderResumo {
   status: OrderStatus | string;
   atendente?: string | null;
   tipo?: string | null;
+  endereco?: | null;
+  mesa?: string | null;
+  observacao?: string | null;
 }
 
 /** Tipo completo para detalhes do pedido */
@@ -54,11 +57,22 @@ const validStatuses: OrderStatus[] = [
   'pedido pronto',
   'cancelado',
 ];
-
 /* ---------------- Helpers ---------------- */
+
+function getCurrentTimestamp(): string {
+  const now = new Date();
+  console.log("🕒 [BACKEND] Hora local do servidor:", now.toString());
+  console.log("🕒 [BACKEND] Hora UTC (ISO):", now.toISOString());
+  return now.toISOString(); // UTC
+}
+
+
 function formatDateLocal(dateString: string | undefined | null) {
   if (!dateString) return dateString ?? '';
+
   const date = new Date(dateString);
+
+  // Apenas formata corretamente no fuso de São Paulo (para logs ou debug)
   return date.toLocaleString('pt-BR', {
     timeZone: 'America/Sao_Paulo',
     day: '2-digit',
@@ -69,9 +83,7 @@ function formatDateLocal(dateString: string | undefined | null) {
   });
 }
 
-function getCurrentTimestamp(): string {
-  return new Date().toISOString();
-}
+
 
 /* ---------------- Simple in-memory cache (TTL) ----------------
    - chave: string construída a partir dos params (página/limit/filtros)
@@ -230,7 +242,10 @@ export async function getPedidos(
     created_at: opts?.formatDates ? formatDateLocal(r.created_at) : r.created_at,
     status: r.status,
     atendente: r.atendente ?? null,
+    endereco: r.endereco ?? null,
     tipo: r.tipo ?? null,
+    mesa: r.mesa ?? null,
+    observacao: r.observacao ?? null,
   }));
 
   if (opts?.useCache) cacheSet(cacheKey, result);
