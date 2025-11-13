@@ -20,10 +20,17 @@ const validStatuses = [
     'cancelado',
 ];
 /* ---------------- Helpers ---------------- */
+function getCurrentTimestamp() {
+    const now = new Date();
+    console.log("🕒 [BACKEND] Hora local do servidor:", now.toString());
+    console.log("🕒 [BACKEND] Hora UTC (ISO):", now.toISOString());
+    return now.toISOString(); // UTC
+}
 function formatDateLocal(dateString) {
     if (!dateString)
         return dateString ?? '';
     const date = new Date(dateString);
+    // Apenas formata corretamente no fuso de São Paulo (para logs ou debug)
     return date.toLocaleString('pt-BR', {
         timeZone: 'America/Sao_Paulo',
         day: '2-digit',
@@ -32,9 +39,6 @@ function formatDateLocal(dateString) {
         hour: '2-digit',
         minute: '2-digit',
     });
-}
-function getCurrentTimestamp() {
-    return new Date().toISOString();
 }
 const CACHE_TTL_MS = Number(process.env.PEDIDOS_CACHE_TTL_MS ?? 20000); // 20s default
 const cache = new Map();
@@ -143,7 +147,7 @@ async function getPedidos(page = 1, limit = 50, opts) {
         if (cached)
             return cached;
     }
-    const selectFields = 'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao';
+    const selectFields = 'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao, telefone';
     const { data, error } = await exports.supabase
         .from('dbpedidos')
         .select(selectFields)
@@ -160,7 +164,11 @@ async function getPedidos(page = 1, limit = 50, opts) {
         created_at: opts?.formatDates ? formatDateLocal(r.created_at) : r.created_at,
         status: r.status,
         atendente: r.atendente ?? null,
+        endereco: r.endereco ?? null,
         tipo: r.tipo ?? null,
+        mesa: r.mesa ?? null,
+        observacao: r.observacao ?? null,
+        telefone: r.telefone ?? null,
     }));
     if (opts?.useCache)
         cacheSet(cacheKey, result);

@@ -23,6 +23,7 @@ export interface OrderResumo {
   id: string;
   numero_seq: number;
   nome_cliente: string;
+  telefone?: string;
   total: number;
   created_at: string; // já formatado se solicitado
   status: OrderStatus | string;
@@ -222,7 +223,7 @@ export async function getPedidos(
   }
 
   const selectFields =
-    'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao';
+    'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao, telefone';
 
   const { data, error } = await supabase
     .from('dbpedidos')
@@ -246,6 +247,7 @@ export async function getPedidos(
     tipo: r.tipo ?? null,
     mesa: r.mesa ?? null,
     observacao: r.observacao ?? null,
+    telefone: r.telefone ?? null,
   }));
 
   if (opts?.useCache) cacheSet(cacheKey, result);
@@ -320,6 +322,7 @@ export async function getPedidosFiltrados(params: {
     status: r.status,
     atendente: r.atendente ?? null,
     tipo: r.tipo ?? null,
+    
   }));
 
   if (params.useCache) cacheSet(cacheKey, result);
