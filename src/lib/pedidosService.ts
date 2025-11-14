@@ -222,7 +222,7 @@ export async function getPedidos(
   }
 
   const selectFields =
-    'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao, telefone';
+    'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao, telefone, pedido';
 
   const { data, error } = await supabase
     .from('dbpedidos')
@@ -247,6 +247,7 @@ export async function getPedidos(
     mesa: r.mesa ?? null,
     observacao: r.observacao ?? null,
     telefone: r.telefone ?? null,
+    pedido: r.pedido ?? [],
   }));
 
   if (opts?.useCache) cacheSet(cacheKey, result);

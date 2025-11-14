@@ -22,8 +22,6 @@ const validStatuses = [
 /* ---------------- Helpers ---------------- */
 function getCurrentTimestamp() {
     const now = new Date();
-    console.log("🕒 [BACKEND] Hora local do servidor:", now.toString());
-    console.log("🕒 [BACKEND] Hora UTC (ISO):", now.toISOString());
     return now.toISOString(); // UTC
 }
 function formatDateLocal(dateString) {
@@ -147,7 +145,7 @@ async function getPedidos(page = 1, limit = 50, opts) {
         if (cached)
             return cached;
     }
-    const selectFields = 'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao, telefone';
+    const selectFields = 'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao, telefone, pedido';
     const { data, error } = await exports.supabase
         .from('dbpedidos')
         .select(selectFields)
@@ -169,6 +167,7 @@ async function getPedidos(page = 1, limit = 50, opts) {
         mesa: r.mesa ?? null,
         observacao: r.observacao ?? null,
         telefone: r.telefone ?? null,
+        pedido: r.pedido ?? [],
     }));
     if (opts?.useCache)
         cacheSet(cacheKey, result);
