@@ -62,8 +62,7 @@ const validStatuses: OrderStatus[] = [
 
 function getCurrentTimestamp(): string {
   const now = new Date();
-  console.log("🕒 [BACKEND] Hora local do servidor:", now.toString());
-  console.log("🕒 [BACKEND] Hora UTC (ISO):", now.toISOString());
+
   return now.toISOString(); // UTC
 }
 
