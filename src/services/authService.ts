@@ -1,6 +1,6 @@
-// src/services/authService.ts
 import { supabase } from "../lib/supabaseClient";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_temporario";
 
@@ -10,33 +10,39 @@ interface User {
   senha: string;
 }
 
-/* ---------------- LOGIN ---------------- */
 export async function loginUsuario(username: string, senha: string) {
-  if (!username || !senha) throw new Error("Usuário e senha são obrigatórios.");
+  if (!username || !senha) {
+    throw new Error("Usuário e senha são obrigatórios.");
+  }
 
-  // 🔥 Query otimizada
   const { data, error } = await supabase
     .from("usuarios")
     .select("id, username, senha")
     .eq("username", username.trim())
-    .limit(1)               // <-- acesso direto ao 1 registro
-    .maybeSingle();         // <-- mais rápido e evita erros internos
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     console.error("Erro Supabase:", error);
     throw new Error("Erro ao acessar o sistema.");
   }
 
-  if (!data) throw new Error("Usuário não encontrado.");
+  if (!data) {
+    throw new Error("Usuário não encontrado.");
+  }
 
   const usuario = data as User;
 
-  // ⚠️ Comparação temporária (sem hash)
-  if (usuario.senha !== senha.trim()) {
+  // 🔐 Comparação com bcrypt
+  const senhaValida = await bcrypt.compare(
+    senha.trim(),
+    usuario.senha
+  );
+
+  if (!senhaValida) {
     throw new Error("Senha incorreta.");
   }
 
-  // 🔥 Criação otimizada do token JWT
   const token = jwt.sign(
     { id: usuario.id, username: usuario.username },
     JWT_SECRET,
