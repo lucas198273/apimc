@@ -1,20 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.supabase = void 0;
-// lib/supabaseClient.ts
+// src/lib/supabaseClient.ts
 const supabase_js_1 = require("@supabase/supabase-js");
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!supabaseUrl || !supabaseKey) {
-    console.error("❌ Variáveis de ambiente ausentes!");
-    console.error("SUPABASE_URL:", supabaseUrl);
-    console.error("SUPABASE_SERVICE_ROLE_KEY:", supabaseKey ? "Definida" : "Indefinida");
-    throw new Error("Variáveis de ambiente do Supabase não configuradas.");
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Supabase URL ou SERVICE_ROLE_KEY não configurados.");
 }
-console.log("✅ Supabase client inicializado.");
-console.log("🔗 URL:", supabaseUrl);
-exports.supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseKey);
-// 🔍 Teste de conexão
+exports.supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseServiceKey);
+console.log("✅ Supabase Client backend inicializado.");
+// Teste de conexão opcional
 (async () => {
     try {
         const { data, error } = await exports.supabase.from("dbpedidos").select("id").limit(1);

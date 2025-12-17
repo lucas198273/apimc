@@ -1,60 +1,20 @@
-import { supabase } from "../lib/supabaseClient";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
+// src/services/authService.ts
+import { supabaseAdmin } from "../lib/supabaseAdmin";
 
-const JWT_SECRET = process.env.JWT_SECRET || "segredo_temporario";
-
-interface User {
-  id: string;
-  username: string;
-  senha: string;
-}
-
-export async function loginUsuario(username: string, senha: string) {
-  if (!username || !senha) {
-    throw new Error("Usuário e senha são obrigatórios.");
+/**
+ * Verifica e valida o token enviado pelo cliente.
+ * @param token JWT do Supabase Auth
+ */
+export async function verifySupabaseToken(token: string) {
+  if (!token) {
+    throw new Error("Token de autenticação não informado.");
   }
 
-  const { data, error } = await supabase
-    .from("usuarios")
-    .select("id, username, senha")
-    .eq("username", username.trim())
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
 
-  if (error) {
-    console.error("Erro Supabase:", error);
-    throw new Error("Erro ao acessar o sistema.");
+  if (error || !data.user) {
+    throw new Error("Token inválido ou usuário não encontrado.");
   }
 
-  if (!data) {
-    throw new Error("Usuário não encontrado.");
-  }
-
-  const usuario = data as User;
-
-  // 🔐 Comparação com bcrypt
-  const senhaValida = await bcrypt.compare(
-    senha.trim(),
-    usuario.senha
-  );
-
-  if (!senhaValida) {
-    throw new Error("Senha incorreta.");
-  }
-
-  const token = jwt.sign(
-    { id: usuario.id, username: usuario.username },
-    JWT_SECRET,
-    { expiresIn: "8h" }
-  );
-
-  return {
-    message: "Login realizado com sucesso.",
-    token,
-    user: {
-      id: usuario.id,
-      username: usuario.username,
-    },
-  };
+  return data.user; // retorna objeto user com sub, email, role etc.
 }

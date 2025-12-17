@@ -1,44 +1,20 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loginUsuario = loginUsuario;
-const supabaseClient_1 = require("../lib/supabaseClient");
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const bcrypt_1 = __importDefault(require("bcrypt"));
-const JWT_SECRET = process.env.JWT_SECRET || "segredo_temporario";
-async function loginUsuario(username, senha) {
-    if (!username || !senha) {
-        throw new Error("Usuário e senha são obrigatórios.");
+exports.verifySupabaseToken = verifySupabaseToken;
+// src/services/authService.ts
+const supabaseAdmin_1 = require("../lib/supabaseAdmin");
+/**
+ * Verifica e valida o token enviado pelo cliente.
+ * @param token JWT do Supabase Auth
+ */
+async function verifySupabaseToken(token) {
+    if (!token) {
+        throw new Error("Token de autenticação não informado.");
     }
-    const { data, error } = await supabaseClient_1.supabase
-        .from("usuarios")
-        .select("id, username, senha")
-        .eq("username", username.trim())
-        .limit(1)
-        .maybeSingle();
-    if (error) {
-        console.error("Erro Supabase:", error);
-        throw new Error("Erro ao acessar o sistema.");
+    const { data, error } = await supabaseAdmin_1.supabaseAdmin.auth.getUser(token);
+    if (error || !data.user) {
+        throw new Error("Token inválido ou usuário não encontrado.");
     }
-    if (!data) {
-        throw new Error("Usuário não encontrado.");
-    }
-    const usuario = data;
-    // 🔐 Comparação com bcrypt
-    const senhaValida = await bcrypt_1.default.compare(senha.trim(), usuario.senha);
-    if (!senhaValida) {
-        throw new Error("Senha incorreta.");
-    }
-    const token = jsonwebtoken_1.default.sign({ id: usuario.id, username: usuario.username }, JWT_SECRET, { expiresIn: "8h" });
-    return {
-        message: "Login realizado com sucesso.",
-        token,
-        user: {
-            id: usuario.id,
-            username: usuario.username,
-        },
-    };
+    return data.user; // retorna objeto user com sub, email, role etc.
 }
 //# sourceMappingURL=authService.js.map

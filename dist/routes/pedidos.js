@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const pedidosService_1 = require("../lib/pedidosService");
+const pedidosService_1 = require("../services/pedidosService");
 const router = (0, express_1.Router)();
 /* ----------------------- UTILS ----------------------- */
 const handleError = (res, error, customMessage) => {

@@ -7,7 +7,7 @@ require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const pedidos_1 = __importDefault(require("./routes/pedidos"));
-const authRoutes_1 = __importDefault(require("./routes/authRoutes")); // 👈 nova rota de autenticação
+const userRoutes_1 = __importDefault(require("./routes/userRoutes")); // 👈 nova rota de autenticação
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
 // 🔐 Domínios permitidos (frontend local + produção)
@@ -44,7 +44,7 @@ app.use((req, res, next) => {
 });
 // 🧩 Rotas principais
 app.use('/api', pedidos_1.default);
-app.use('/api/auth', authRoutes_1.default); // 👈 adicionando o login aqui
+app.use('/api/perfil', userRoutes_1.default); // 👈 adicionando o login aqui
 // Rota raiz (teste rápido no navegador)
 app.get('/', (req, res) => {
     res.send('✅ API do Sistema de Pedidos está rodando com autenticação!');

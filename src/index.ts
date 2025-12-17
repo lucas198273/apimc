@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import pedidosRouter from './routes/pedidos';
-import authRouter from './routes/authRoutes'; // 👈 nova rota de autenticação
+import userRouter from './routes/userRoutes'; // 👈 nova rota de autenticação
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -44,7 +44,7 @@ app.use((req, res, next) => {
 
 // 🧩 Rotas principais
 app.use('/api', pedidosRouter);
-app.use('/api/auth', authRouter); // 👈 adicionando o login aqui
+app.use('/api/perfil', userRouter); // 👈 adicionando o login aqui
 
 // Rota raiz (teste rápido no navegador)
 app.get('/', (req, res) => {

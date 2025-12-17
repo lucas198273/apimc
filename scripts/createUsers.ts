@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 async function createUser() {
-  const username = "the brothers";
+  const username = "thebrothersbetim@gmail.com";
   const senha = "1#2#3#";
 
   const senhaHash = await bcrypt.hash(senha, 10);
@@ -19,6 +19,7 @@ async function createUser() {
       username,
       senha: senhaHash,
     });
+
 
   if (error) {
     console.error("❌ Erro ao criar usuário:", error);
