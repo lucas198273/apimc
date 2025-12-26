@@ -26,7 +26,7 @@ router.post('/dbpedidos', async (req, res) => {
 /* ----------------------- BUSCAR TODOS OS PEDIDOS ----------------------- */
 router.get('/dbpedidos', async (_req, res) => {
     try {
-        const pedidos = await (0, pedidosService_1.getPedidos)();
+        const pedidos = await (0, pedidosService_1.getPedidosResumo)();
         return res.json({
             success: true,
             total: pedidos.length,

@@ -207,7 +207,7 @@ export async function getPedidoByNumeroSeq(numero_seq: number): Promise<Order | 
 }
 
 /* ---------------- Listagem otimizada com paginação e campos selecionados ---------------- */
-export async function getPedidos(
+export async function getPedidosResumo(
   page = 1,
   limit = 50,
   opts?: { formatDates?: boolean; useCache?: boolean }
@@ -215,44 +215,58 @@ export async function getPedidos(
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  const cacheKey = `pedidos:page=${page}:limit=${limit}:fmt=${Boolean(opts?.formatDates)}`;
+  const cacheKey = `pedidos:resumo:p=${page}:l=${limit}:fmt=${Boolean(
+    opts?.formatDates
+  )}`;
+
   if (opts?.useCache) {
     const cached = cacheGet<OrderResumo[]>(cacheKey);
     if (cached) return cached;
   }
 
-  const selectFields =
-    'id, numero_seq, nome_cliente, total, created_at, status, atendente, tipo, endereco, mesa, observacao, telefone, pedido';
-
   const { data, error } = await supabase
-    .from('dbpedidos')
-    .select(selectFields)
-    .order('created_at', { ascending: false })
+    .from("dbpedidos")
+    .select(`
+      id,
+      numero_seq,
+      nome_cliente,
+      total,
+      created_at,
+      status,
+      atendente,
+      tipo,
+      mesa,
+      telefone
+    `)
+    .order("created_at", { ascending: false })
     .range(from, to);
 
-  if (error) throw new Error(`Erro ao buscar pedidos: ${error.message}`);
+  if (error) {
+    throw new Error(`Erro ao buscar pedidos: ${error.message}`);
+  }
 
-  const rows = (data ?? []) as any[];
-
-  const result: OrderResumo[] = rows.map((r) => ({
+  const result: OrderResumo[] = (data ?? []).map((r) => ({
     id: r.id,
     numero_seq: Number(r.numero_seq),
     nome_cliente: r.nome_cliente,
     total: Number(r.total),
-    created_at: opts?.formatDates ? formatDateLocal(r.created_at) : r.created_at,
+    created_at: opts?.formatDates
+      ? formatDateLocal(r.created_at)
+      : r.created_at,
     status: r.status,
     atendente: r.atendente ?? null,
-    endereco: r.endereco ?? null,
-    tipo: r.tipo ?? null,
-    mesa: r.mesa ?? null,
-    observacao: r.observacao ?? null,
+    tipo: r.tipo,
+    mesa: r.tipo === "mesa" ? r.mesa : null,
     telefone: r.telefone ?? null,
-    pedido: r.pedido ?? [],
   }));
 
-  if (opts?.useCache) cacheSet(cacheKey, result);
+  if (opts?.useCache) {
+    cacheSet(cacheKey, result);
+  }
+
   return result;
 }
+
 
 /* ---------------- Filtragem paginada (retorna OrderResumo) ----------------
    - Sempre retorna [] quando nada encontrado

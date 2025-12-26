@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import {
-  getPedidos,
+  getPedidosResumo,
   createPedidoComNumero,
   updatePedidoByNumeroSeq,
   deletePedido,
@@ -34,7 +34,7 @@ router.post('/dbpedidos', async (req: Request, res: Response) => {
 /* ----------------------- BUSCAR TODOS OS PEDIDOS ----------------------- */
 router.get('/dbpedidos', async (_req: Request, res: Response) => {
   try {
-    const pedidos = await getPedidos();
+    const pedidos = await getPedidosResumo();
     return res.json({
       success: true,
       total: pedidos.length,
