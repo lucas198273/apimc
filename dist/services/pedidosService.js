@@ -8,6 +8,7 @@ exports.getPedidoByNumeroSeq = getPedidoByNumeroSeq;
 exports.getPedidosResumo = getPedidosResumo;
 exports.getPedidosFiltrados = getPedidosFiltrados;
 exports.deletePedido = deletePedido;
+exports.getPedidosParaPdf = getPedidosParaPdf;
 // src/lib/pedidosService.ts
 const supabase_js_1 = require("@supabase/supabase-js");
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -251,5 +252,45 @@ async function deletePedido(id) {
         throw new Error(`Erro ao deletar pedido: ${error.message}`);
     cache.clear(); // invalida cache simples
     return { message: 'Pedido removido com sucesso.' };
+}
+function toStartOfDayUTC(date) {
+    const d = new Date(date);
+    d.setUTCHours(0, 0, 0, 0);
+    return d.toISOString();
+}
+function toEndOfDayUTC(date) {
+    const d = new Date(date);
+    d.setUTCHours(23, 59, 59, 999);
+    return d.toISOString();
+}
+async function getPedidosParaPdf(filters = {}) {
+    let query = exports.supabase
+        .from('dbpedidos')
+        .select(`
+      numero_seq,
+      nome_cliente,
+      total,
+      created_at,
+      status,
+      tipo,
+      mesa,
+      telefone,
+      atendente,
+      observacao,
+      pedido
+    `)
+        .order('created_at', { ascending: false });
+    if (filters.data_inicio?.trim()) {
+        query = query.gte('created_at', toStartOfDayUTC(filters.data_inicio));
+    }
+    if (filters.data_fim?.trim()) {
+        query = query.lte('created_at', toEndOfDayUTC(filters.data_fim));
+    }
+    const { data, error } = await query;
+    if (error) {
+        console.error('Erro Supabase PDF:', error);
+        throw new Error('Erro ao buscar pedidos para PDF');
+    }
+    return (data ?? []);
 }
 //# sourceMappingURL=pedidosService.js.map

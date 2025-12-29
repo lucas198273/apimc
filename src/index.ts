@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import pedidosRouter from './routes/pedidos';
 import userRouter from './routes/userRoutes'; // 👈 nova rota de autenticação
+import orderRoutes from "./routes/order.routes";  
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -50,6 +51,7 @@ app.use('/api/perfil', userRouter); // 👈 adicionando o login aqui
 app.get('/', (req, res) => {
   res.send('✅ API do Sistema de Pedidos está rodando com autenticação!');
 });
+app.use("/api/orders", orderRoutes);
 
 // 🚀 Inicializa o servidor
 app.listen(port, () => {

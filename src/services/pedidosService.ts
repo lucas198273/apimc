@@ -1,5 +1,6 @@
 // src/lib/pedidosService.ts
 import { createClient } from '@supabase/supabase-js';
+import { type OrderPdf } from '../types/Orders';
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -12,6 +13,7 @@ export type OrderStatus =
   | 'pedido pronto'
   | 'cancelado';
 
+  
 export interface OrderItem {
   name: string;
   price: number;
@@ -350,3 +352,59 @@ export async function deletePedido(id: string) {
   cache.clear(); // invalida cache simples
   return { message: 'Pedido removido com sucesso.' };
 }
+interface PedidosPdfFilters {
+  data_inicio?: string;
+  data_fim?: string;
+}
+function toStartOfDayUTC(date: string) {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+function toEndOfDayUTC(date: string) {
+  const d = new Date(date);
+  d.setUTCHours(23, 59, 59, 999);
+  return d.toISOString();
+}
+
+export async function getPedidosParaPdf(
+  filters: PedidosPdfFilters = {}
+): Promise<OrderPdf[]> {
+
+  let query = supabase
+    .from('dbpedidos')
+    .select(`
+      numero_seq,
+      nome_cliente,
+      total,
+      created_at,
+      status,
+      tipo,
+      mesa,
+      telefone,
+      atendente,
+      observacao,
+      pedido
+    `)
+    .order('created_at', { ascending: false });
+
+  if (filters.data_inicio?.trim()) {
+    query = query.gte('created_at', toStartOfDayUTC(filters.data_inicio));
+  }
+
+  if (filters.data_fim?.trim()) {
+    query = query.lte('created_at', toEndOfDayUTC(filters.data_fim));
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Erro Supabase PDF:', error);
+    throw new Error('Erro ao buscar pedidos para PDF');
+  }
+
+  return (data ?? []) as OrderPdf[];
+}
+
+

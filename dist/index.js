@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const pedidos_1 = __importDefault(require("./routes/pedidos"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes")); // 👈 nova rota de autenticação
+const order_routes_1 = __importDefault(require("./routes/order.routes"));
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
 // 🔐 Domínios permitidos (frontend local + produção)
@@ -49,6 +50,7 @@ app.use('/api/perfil', userRoutes_1.default); // 👈 adicionando o login aqui
 app.get('/', (req, res) => {
     res.send('✅ API do Sistema de Pedidos está rodando com autenticação!');
 });
+app.use("/api/orders", order_routes_1.default);
 // 🚀 Inicializa o servidor
 app.listen(port, () => {
     console.log(`Servidor rodando em http://localhost:${port}`);
