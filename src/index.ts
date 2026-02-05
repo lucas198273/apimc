@@ -12,7 +12,6 @@ const envFile = process.env.NODE_ENV === 'production'
   : '.env.development';
 dotenv.config({ path: path.resolve(process.cwd(), envFile), override: true });
 
-// Validação obrigatória no startup
 if (!process.env.INFINITEPAY_HANDLE) {
   console.error('ERRO FATAL: INFINITEPAY_HANDLE não definido no .env');
   process.exit(1);
