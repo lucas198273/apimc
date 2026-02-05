@@ -1,59 +1,69 @@
-import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import pedidosRouter from './routes/pedidos';
-import userRouter from './routes/userRoutes'; // 👈 nova rota de autenticação
-import orderRoutes from "./routes/order.routes";  
+import dotenv from 'dotenv';
+import path from 'path';
+import paymentsRouter from './routes/payments';
+
+dotenv.config();
+
+// Carrega .env correto baseado em NODE_ENV (opcional, mas ajuda em alguns deploys)
+const envFile = process.env.NODE_ENV === 'production'
+  ? '.env.production'
+  : '.env.development';
+dotenv.config({ path: path.resolve(process.cwd(), envFile), override: true });
+
+// Validação obrigatória no startup
+if (!process.env.INFINITEPAY_HANDLE) {
+  console.error('ERRO FATAL: INFINITEPAY_HANDLE não definido no .env');
+  process.exit(1);
+}
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 5000;
+const NODE_ENV = process.env.NODE_ENV || 'production';
 
-// 🔐 Domínios permitidos (frontend local + produção)
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  process.env.FRONTEND_URL_PND,
-  process.env.FRONTEND_URLS_CLI,
-].filter(Boolean); // remove undefined caso alguma não esteja setada
-
-
-// ⚙️ Configuração do CORS
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true,
-}));
 app.use(express.json());
 
-// ⚙️ Configuração do CORS (ajustada para Render)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", allowedOrigins.includes(req.headers.origin) ? req.headers.origin : "null");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Credentials", "true");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// ==================== CORS ====================
+const allowedOrigins = [
+  'http://127.0.0.1:5173',
+  'http://localhost:5173',
+  // Adicione seu domínio de produção real aqui
+  // 'https://paginapagamento.netlify.app',
+];
 
-// 🧩 Rotas principais
-app.use('/api', pedidosRouter);
-app.use('/api/perfil', userRouter); // 👈 adicionando o login aqui
+if (NODE_ENV === 'development') {
+  console.log('⚠️ Modo desenvolvimento: CORS liberado para todas as origens (teste local)');
+  app.use(cors({ origin: '*' }));
+} else {
+  app.use(cors({
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400,
+  }));
+}
+// ==============================================
 
-// Rota raiz (teste rápido no navegador)
+app.use('/api/payments', paymentsRouter);
+
+// Health check + debug de config
 app.get('/', (req, res) => {
-  res.send('✅ API do Sistema de Pedidos está rodando com autenticação!');
+  res.json({
+    status: 'API InfinitePay rodando com sucesso',
+    environment: NODE_ENV,
+    port: PORT,
+    handle: process.env.INFINITEPAY_HANDLE,
+    redirect_url_configurado: process.env.INFINITE_REDIRECT_URL || '(não definido – use .env)',
+    webhook_url_configurado: process.env.INFINITE_WEBHOOK_URL || '(não definido – use .env)',
+  });
 });
-app.use("/api/orders", orderRoutes);
 
-// 🚀 Inicializa o servidor
-app.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+  console.log(`   Ambiente ........: ${NODE_ENV}`);
+  console.log(`   Handle ...........: ${process.env.INFINITEPAY_HANDLE}`);
+  console.log(`   Redirect URL .....: ${process.env.INFINITE_REDIRECT_URL || '(não definido)'}`);
+  console.log(`   Webhook URL ......: ${process.env.INFINITE_WEBHOOK_URL || '(não definido)'}`);
+  console.log(`   CORS mode ........: ${NODE_ENV === 'development' ? 'Aberto (dev)' : 'Restrito (prod)'}`);
 });
