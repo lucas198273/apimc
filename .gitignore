@@ -1,0 +1,77 @@
+# Dependências instaladas (nunca suba isso!)
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# Pastas de build/compilação TypeScript
+dist/
+build/
+out/
+lib/           # se você usa lib como output
+
+# Arquivos de cache e temp do TypeScript / compilador
+*.tsbuildinfo
+.tscache/
+tsconfig.tsbuildinfo
+
+# Logs e arquivos temporários
+*.log
+logs/
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Ambiente local e segredos
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+!.env.example   # mantenha o exemplo versionado, sem valores reais
+
+# Editor e IDE (VS Code, etc.)
+.vscode/
+!.vscode/settings.json   # opcional: versiona se for config compartilhada
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/                   # IntelliJ / WebStorm
+*.swp
+*.swo
+*.swn
+
+# Testes e coverage
+coverage/
+.nyc_output/
+jest-coverage/
+test-results/
+
+# Ferramentas de lint/format
+.eslintcache
+.prettiercache
+.stylelintcache
+
+# Builds e bundles de ferramentas (ex: Parcel, Vite, etc. se usar)
+.cache/
+.parcel-cache/
+.next/                   # se for Next.js
+out/
+
+# Arquivos gerados por OS (Windows/Mac/Linux)
+.DS_Store
+Thumbs.db
+ehthumbs.db
+*.bak
+*.tmp
+*.temp
+
+# Docker e containers (se usar)
+.dockerignore   # não ignora, mas se tiver .dockerignore separado
+Dockerfile.*    # variantes locais
+
+# Outros comuns em projetos Node
