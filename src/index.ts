@@ -23,7 +23,6 @@ const NODE_ENV = process.env.NODE_ENV || 'production';
 
 app.use(express.json());
 
-// ==================== CORS ====================
 const allowedOrigins = [
   // 'http://127.0.0.1:5173',
   // 'http://localhost:5173',
