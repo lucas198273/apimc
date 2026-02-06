@@ -37,7 +37,7 @@ export async function criarLinkPagamentoInfinitePay(params: {
     items: [
       {
         quantity: 1,
-        price: params.amountCentavos,
+        price: params.amountCentavos / 100,
         description: (params.description || 'Pagamento').trim(),
       },
     ],
