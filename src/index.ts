@@ -25,10 +25,10 @@ app.use(express.json());
 
 // ==================== CORS ====================
 const allowedOrigins = [
-  'http://127.0.0.1:5173',
-  'http://localhost:5173',
+  // 'http://127.0.0.1:5173',
+  // 'http://localhost:5173',
   // Adicione seu domínio de produção real aqui
-  // 'https://paginapagamento.netlify.app',
+  'https://paginapagamento.netlify.app',
 ];
 
 if (NODE_ENV === 'development') {
