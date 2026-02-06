@@ -6,6 +6,9 @@ const router = Router();
 router.post('/create', async (req: Request, res: Response) => {
   const data = req.body;
 
+  // ===============================
+  // 1️⃣ Validação básica do payload
+  // ===============================
   if (!data || typeof data !== 'object') {
     return res.status(400).json({ error: 'JSON inválido ou ausente' });
   }
@@ -14,31 +17,49 @@ router.post('/create', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'amount é obrigatório' });
   }
 
+  // ===============================
+  // 2️⃣ Converter amount → centavos
+  // ===============================
   let amountCentavos: number;
   try {
-    amountCentavos = Math.round(parseFloat(data.amount) * 100);
-    if (amountCentavos <= 0) throw new Error();
+    amountCentavos = Math.round(Number(data.amount) * 100);
+    if (!Number.isFinite(amountCentavos) || amountCentavos <= 0) {
+      throw new Error();
+    }
   } catch {
     return res.status(400).json({ error: 'amount inválido' });
   }
 
+  // ===============================
+  // 3️⃣ Customer (name + email)
+  // ===============================
   let customer: Customer | null = null;
-  const payer = data.payer;
-  if (payer && payer.email) {
+
+  if (data.customer) {
+    const { name, email } = data.customer;
+
+    if (!name || !email) {
+      return res.status(400).json({
+        error: 'customer.name e customer.email são obrigatórios',
+      });
+    }
+
     customer = {
-      name: `${payer.first_name || ''} ${payer.last_name || ''}`.trim() || 'Cliente',
-      email: payer.email,
+      name: String(name).trim(),
+      email: String(email).trim().toLowerCase(),
     };
   }
 
+  // ===============================
+  // 4️⃣ Criar link InfinitePay
+  // ===============================
   try {
     const result = await criarLinkPagamentoInfinitePay({
       amountCentavos,
       description: data.description || 'Pagamento',
       customer,
       orderNsu: data.order_nsu,
-      // Não passa redirectUrl / webhookUrl aqui → o service pega do .env
-      // Se quiser override por request, pode passar: redirectUrl: data.redirect_url
+      // redirectUrl e webhookUrl vêm do .env
     });
 
     return res.status(201).json({
@@ -48,9 +69,10 @@ router.post('/create', async (req: Request, res: Response) => {
       order_nsu: data.order_nsu,
     });
   } catch (error: any) {
-    console.error('Erro InfinitePay:', error.message);
+    console.error('❌ Erro InfinitePay:', error.message);
+
     return res.status(502).json({
-      error: 'Falha na InfinitePay',
+      error: 'Falha ao criar pagamento na InfinitePay',
       details: error.message,
     });
   }

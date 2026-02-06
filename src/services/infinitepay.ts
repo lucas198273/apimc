@@ -19,7 +19,7 @@ export async function criarLinkPagamentoInfinitePay(params: {
   redirectUrl?: string;
   webhookUrl?: string;
 }) {
-  const handle = process.env.INFINITEPAY_HANDLE?.trim();
+  const handle = process.env.INFINITEPAY_HANDLE ?.trim();
   if (!handle) {
     throw new Error('INFINITEPAY_HANDLE não configurado no ambiente. Verifique o .env');
   }
