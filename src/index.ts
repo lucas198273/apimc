@@ -2,9 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-// ===============================
-// 1️⃣ Carregar ENV corretamente
-// ===============================
 dotenv.config();
 
 if (!process.env.INFINITEPAY_HANDLE) {
@@ -17,30 +14,28 @@ const PORT = Number(process.env.PORT) || 10000;
 const NODE_ENV = process.env.NODE_ENV || 'production';
 
 // ===============================
-// 2️⃣ Middlewares básicos
+// Middlewares
 // ===============================
 app.use(express.json());
 
 // ===============================
-// 3️⃣ CORS — produção real
+// CORS — CORRETO E COMPATÍVEL
 // ===============================
-
+const allowedOrigins = [
+  'https://paginapagamento.netlify.app',
+];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permite server-to-server, curl, webhook, etc
+    // server-to-server, curl, webhook
     if (!origin) return callback(null, true);
-
-    const allowedOrigins = [
-      'https://paginapagamento.netlify.app',
-    ];
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
     console.error('🚫 CORS bloqueado para:', origin);
-    return callback(null, false);
+    return callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: [
@@ -50,15 +45,16 @@ app.use(cors({
   ],
 }));
 
+// ❌ REMOVIDO: app.options('*', cors());
 
 // ===============================
-// 4️⃣ Rotas
+// Rotas
 // ===============================
 import paymentsRouter from './routes/payments';
 app.use('/api/payments', paymentsRouter);
 
 // ===============================
-// 5️⃣ Health Check (produção)
+// Health check
 // ===============================
 app.get('/', (req, res) => {
   res.json({
@@ -71,13 +67,11 @@ app.get('/', (req, res) => {
 });
 
 // ===============================
-// 6️⃣ Start server
+// Start
 // ===============================
 app.listen(PORT, () => {
   console.log('🚀 API INFINITEPAY ONLINE');
   console.log(`🌍 Ambiente ........: ${NODE_ENV}`);
   console.log(`🔗 Porta ...........: ${PORT}`);
   console.log(`🏷️ Handle ..........: ${process.env.INFINITEPAY_HANDLE}`);
-  console.log(`↪ Redirect URL ....: ${process.env.INFINITE_REDIRECT_URL}`);
-  console.log(`🔔 Webhook URL .....: ${process.env.INFINITE_WEBHOOK_URL}`);
 });
