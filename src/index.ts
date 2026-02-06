@@ -24,25 +24,32 @@ app.use(express.json());
 // ===============================
 // 3️⃣ CORS — produção real
 // ===============================
-const allowedOrigins = [
-  'https://paginapagamento.netlify.app',
-];
+
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permite chamadas server-to-server (webhook)
+    // Permite server-to-server, curl, webhook, etc
     if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      'https://paginapagamento.netlify.app',
+    ];
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    return callback(new Error('Not allowed by CORS'));
+    console.error('🚫 CORS bloqueado para:', origin);
+    return callback(null, false);
   },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false,
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Frontend-Env',
+  ],
 }));
+
 
 // ===============================
 // 4️⃣ Rotas
