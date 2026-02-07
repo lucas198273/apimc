@@ -4,76 +4,59 @@ import { criarLinkPagamentoInfinitePay, Customer } from '../services/infinitepay
 const router = Router();
 
 router.post('/create', async (req: Request, res: Response) => {
-  const data = req.body;
 
-  // ===============================
-  // 1️⃣ Validação básica do payload
-  // ===============================
-  if (!data || typeof data !== 'object') {
-    return res.status(400).json({ error: 'JSON inválido ou ausente' });
+  const body = req.body;
+  if (!body) {
+    return res.status(400).json({ error: 'Body ausente' });
   }
 
-  if (!data.amount) {
-    return res.status(400).json({ error: 'amount é obrigatório' });
-  }
-
-  // ===============================
-  // 2️⃣ Converter amount → centavos
-  // ===============================
-  let amountCentavos: number;
-  try {
-    amountCentavos = Math.round(Number(data.amount) * 100);
-    if (!Number.isFinite(amountCentavos) || amountCentavos <= 0) {
-      throw new Error();
-    }
-  } catch {
+  // amount parse ultra rápido
+  const amountNumber = Number(body.amount);
+  if (!amountNumber || amountNumber <= 0) {
     return res.status(400).json({ error: 'amount inválido' });
   }
 
-  // ===============================
-  // 3️⃣ Customer (name + email)
-  // ===============================
-  let customer: Customer | null = null;
+  const amountCentavos = Math.round(amountNumber * 100);
 
-  if (data.customer) {
-    const { name, email } = data.customer;
+  // customer
+  let customer: Customer | undefined;
+
+  if (body.customer) {
+
+    const name = body.customer.name?.trim();
+    const email = body.customer.email?.trim().toLowerCase();
 
     if (!name || !email) {
       return res.status(400).json({
-        error: 'customer.name e customer.email são obrigatórios',
+        error: 'customer.name e customer.email obrigatórios',
       });
     }
 
-    customer = {
-      name: String(name).trim(),
-      email: String(email).trim().toLowerCase(),
-    };
+    customer = { name, email };
   }
 
-  // ===============================
-  // 4️⃣ Criar link InfinitePay
-  // ===============================
   try {
+
     const result = await criarLinkPagamentoInfinitePay({
       amountCentavos,
-      description: data.description || 'Pagamento',
+      description: body.description,
       customer,
-      orderNsu: data.order_nsu,
-      // redirectUrl e webhookUrl vêm do .env
+      orderNsu: body.order_nsu,
     });
 
     return res.status(201).json({
       type: 'infinitepay_checkout',
       link: result.link,
       slug: result.slug,
-      order_nsu: data.order_nsu,
+      order_nsu: body.order_nsu,
     });
+
   } catch (error: any) {
-    console.error('❌ Erro InfinitePay:', error.message);
+
+    console.error('InfinitePay error:', error.message);
 
     return res.status(502).json({
-      error: 'Falha ao criar pagamento na InfinitePay',
-      details: error.message,
+      error: 'Falha ao criar pagamento',
     });
   }
 });

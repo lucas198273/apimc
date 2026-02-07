@@ -1,9 +1,19 @@
-import axios from 'axios';
 import dotenv from 'dotenv';
+import { infiniteAxios } from '../lib/infiniteAxios';
 
 dotenv.config();
 
-const INFINITE_API_URL = 'https://api.infinitepay.io/invoices/public/checkout/links';
+const CHECKOUT_PATH = '/invoices/public/checkout/links';
+
+// 🔥 CACHE ENV (não lê toda request)
+const HANDLE = process.env.INFINITEPAY_HANDLE?.trim();
+const REDIRECT_URL = process.env.INFINITE_REDIRECT_URL?.trim();
+const WEBHOOK_URL = process.env.INFINITE_WEBHOOK_URL?.trim();
+const NODE_ENV = process.env.NODE_ENV;
+
+if (!HANDLE) {
+  throw new Error('INFINITEPAY_HANDLE não configurado');
+}
 
 export interface Customer {
   name: string;
@@ -15,81 +25,66 @@ export async function criarLinkPagamentoInfinitePay(params: {
   description?: string;
   customer?: Customer | null;
   orderNsu?: string;
-  // redirectUrl e webhookUrl agora são opcionais no params, mas priorizamos .env
   redirectUrl?: string;
   webhookUrl?: string;
 }) {
-  const handle = process.env.INFINITEPAY_HANDLE ?.trim();
-  if (!handle) {
-    throw new Error('INFINITEPAY_HANDLE não configurado no ambiente. Verifique o .env');
-  }
 
-  if (!params.amountCentavos || params.amountCentavos <= 0) {
-    throw new Error('amountCentavos deve ser um inteiro positivo');
+  if (params.amountCentavos <= 0) {
+    throw new Error('amountCentavos inválido');
   }
-
-  // Prioriza o que vem do .env (configuração global), mas aceita override via params se quiser
-  const redirectUrl = process.env.INFINITE_REDIRECT_URL?.trim() || params.redirectUrl?.trim();
-  const webhookUrl = process.env.INFINITE_WEBHOOK_URL?.trim() || params.webhookUrl?.trim();
 
   const payload: any = {
-    handle,
+    handle: HANDLE,
     items: [
       {
         quantity: 1,
         price: params.amountCentavos / 100,
-        description: (params.description || 'Pagamento').trim(),
+        description: params.description?.trim() || 'Pagamento',
       },
     ],
   };
 
-  // Customer (opcional)
-  if (params.customer?.name && params.customer?.email) {
-    payload.customer = {
-      name: params.customer.name.trim(),
-      email: params.customer.email.trim().toLowerCase(),
-    };
+  if (params.customer) {
+    payload.customer = params.customer;
   }
 
-  // Campos opcionais
-  if (params.orderNsu) payload.order_nsu = String(params.orderNsu);
-  if (redirectUrl) payload.redirect_url = redirectUrl;
-  if (webhookUrl) payload.webhook_url = webhookUrl;
+  if (params.orderNsu) payload.order_nsu = params.orderNsu;
 
-  console.log('[InfinitePay] Enviando payload:', JSON.stringify(payload, null, 2));
+  payload.redirect_url = params.redirectUrl || REDIRECT_URL;
+  payload.webhook_url = params.webhookUrl || WEBHOOK_URL;
+
+  if (NODE_ENV !== 'production') {
+    console.log('[InfinitePay payload]', payload);
+  }
 
   try {
-    const response = await axios.post(INFINITE_API_URL, payload, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 30000,
-    });
-
+    const response = await infiniteAxios.post(CHECKOUT_PATH, payload);
     const data = response.data;
 
-    const possibleKeys = ['link', 'url', 'checkout_url', 'payment_url', 'invoice_url'];
-    let link = null;
-    for (const key of possibleKeys) {
-      if (data[key] && typeof data[key] === 'string' && data[key].startsWith('http')) {
-        link = data[key];
-        break;
-      }
-    }
+    const link =
+      data.link ||
+      data.url ||
+      data.checkout_url ||
+      data.payment_url ||
+      data.invoice_url;
 
     if (!link) {
-      throw new Error(`Nenhuma URL de checkout retornada: ${JSON.stringify(data)}`);
+      throw new Error('InfinitePay não retornou link');
     }
 
-    const slug = data.slug || data.invoice_slug;
+    return {
+      link,
+      slug: data.slug || data.invoice_slug || null,
+    };
 
-    console.log(`[InfinitePay] Checkout criado: ${link} (slug: ${slug})`);
-
-    return { link, slug };
   } catch (error: any) {
+
     if (error.response) {
-      console.error('[InfinitePay] Erro HTTP:', error.response.status, error.response.data);
-      throw new Error(`InfinitePay HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`);
+      throw new Error(
+        `InfinitePay HTTP ${error.response.status}`
+      );
     }
-    console.error('[InfinitePay] Erro de requisição:', error.message);
-    throw new Error(`Erro ao comunicar com InfinitePay: ${error.message}`);
+
+    throw new Error(`InfinitePay request fail: ${error.message}`);
   }
 }
