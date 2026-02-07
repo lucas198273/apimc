@@ -22,7 +22,7 @@ app.use(express.json());
 // CORS — CORRETO E COMPATÍVEL
 // ===============================
 const allowedOrigins = [
-  'https://paginapagamento.netlify.app',
+  'http://localhost:5173',
 ];
 
 app.use(cors({
@@ -70,8 +70,5 @@ app.get('/', (req, res) => {
 // Start
 // ===============================
 app.listen(PORT, () => {
-  console.log('🚀 API INFINITEPAY ONLINE');
-  console.log(`🌍 Ambiente ........: ${NODE_ENV}`);
-  console.log(`🔗 Porta ...........: ${PORT}`);
-  console.log(`🏷️ Handle ..........: ${process.env.INFINITEPAY_HANDLE}`);
+  console.log(`🚀 API InfinitePay rodando em http://localhost:${PORT} (env: ${NODE_ENV})`)  ;
 });
