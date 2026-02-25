@@ -1,11 +1,14 @@
 import dotenv from 'dotenv';
-import { infiniteAxios } from '../lib/infiniteAxios';
+import { infiniteAxios } from '../lib/infiniteAxios';  // Usa a instância otimizada
+import pino from 'pino';
 
 dotenv.config();
 
+const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'info' : 'debug' });
+
 const CHECKOUT_PATH = '/invoices/public/checkout/links';
 
-// 🔥 CACHE ENV (não lê toda request)
+// Cache env (já bom)
 const HANDLE = process.env.INFINITEPAY_HANDLE?.trim();
 const REDIRECT_URL = process.env.INFINITE_REDIRECT_URL?.trim();
 const WEBHOOK_URL = process.env.INFINITE_WEBHOOK_URL?.trim();
@@ -28,7 +31,6 @@ export async function criarLinkPagamentoInfinitePay(params: {
   redirectUrl?: string;
   webhookUrl?: string;
 }) {
-
   if (params.amountCentavos <= 0) {
     throw new Error('amountCentavos inválido');
   }
@@ -54,19 +56,17 @@ export async function criarLinkPagamentoInfinitePay(params: {
   payload.webhook_url = params.webhookUrl || WEBHOOK_URL;
 
   if (NODE_ENV !== 'production') {
-    console.log('[InfinitePay payload]', payload);
+    logger.debug({ payload }, '[InfinitePay payload]');
   }
 
+  const start = Date.now();  // Novo: medir tempo da API call
   try {
     const response = await infiniteAxios.post(CHECKOUT_PATH, payload);
-    const data = response.data;
+    const duration = Date.now() - start;
+    logger.info({ duration, status: response.status }, 'InfinitePay response ok');
 
-    const link =
-      data.link ||
-      data.url ||
-      data.checkout_url ||
-      data.payment_url ||
-      data.invoice_url;
+    const data = response.data;
+    const link = data.link || data.url || data.checkout_url || data.payment_url || data.invoice_url;
 
     if (!link) {
       throw new Error('InfinitePay não retornou link');
@@ -76,15 +76,13 @@ export async function criarLinkPagamentoInfinitePay(params: {
       link,
       slug: data.slug || data.invoice_slug || null,
     };
-
   } catch (error: any) {
+    const duration = Date.now() - start;
+    logger.error({ error: error.message, duration }, 'InfinitePay falha');
 
     if (error.response) {
-      throw new Error(
-        `InfinitePay HTTP ${error.response.status}`
-      );
+      throw new Error(`InfinitePay HTTP ${error.response.status}: ${error.response.data?.message || 'Sem detalhes'}`);
     }
-
-    throw new Error(`InfinitePay request fail: ${error.message}`);
+    throw new Error(`InfinitePay request fail: ${error.message || 'Desconhecido'}`);
   }
 }

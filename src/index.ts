@@ -22,6 +22,7 @@ app.use(express.json());
 // CORS — CORRETO E COMPATÍVEL
 // ===============================
 const allowedOrigins = [
+  // 'http://localhost:5173',
   'https://paginapagamento.netlify.app',
 ];
 
