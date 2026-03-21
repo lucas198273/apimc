@@ -1,6 +1,5 @@
 // src/routes/payments.ts
 import { Router, Request, Response } from 'express';
-import { body, validationResult } from 'express-validator';
 import { InfinitePayService } from '../services/infinitepay';
 import { logger } from '../utils/logger';
 import { limiter } from '../middleware/rate-limit';
@@ -9,62 +8,13 @@ const router = Router();
 const paymentService = InfinitePayService.getInstance();
 
 // ===========================================
-// VALIDATION
-// ===========================================
-const validateCreatePayment = [
-  body('items')
-    .isArray({ min: 1 })
-    .withMessage('O carrinho deve conter pelo menos um item'),
-
-  body('items.*.description')
-    .trim()
-    .isString()
-    .isLength({ min: 1, max: 200 }),
-
-  body('items.*.quantity')
-    .isInt({ min: 1, max: 999 }),
-
-  body('items.*.unit_price')
-    .isFloat({ gt: 0 }),
-
-  body('customer').optional().isObject(),
-
-  body('customer.name').optional().isString().notEmpty(),
-
-  body('customer.email').optional().isEmail(),
-
-  body('customer.phone')
-    .optional()
-    .matches(/^\+55\d{10,11}$/),
-
-  body('external_reference')
-    .optional()
-    .isString()
-    .isLength({ max: 100 }),
-
-  body('return_url')
-    .optional()
-    .isURL(),
-];
-
-// ===========================================
-// CREATE PAYMENT
+// CREATE PAYMENT - COM VALIDAÇÃO MANUAL
 // ===========================================
 router.post(
   '/create',
   limiter,
-  validateCreatePayment,
   async (req: Request, res: Response) => {
     const startTime = Date.now();
-    const errors = validationResult(req);
-
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Dados inválidos',
-        details: errors.array(),
-      });
-    }
 
     try {
       const {
@@ -74,12 +24,90 @@ router.post(
         return_url,
       } = req.body;
 
-      const order_nsu =
-        external_reference || `order-${Date.now()}`;
+      // ===========================================
+      // VALIDAÇÃO MANUAL
+      // ===========================================
+      
+      // Valida items
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'O carrinho deve conter pelo menos um item',
+        });
+      }
+
+      // Valida cada item
+      for (const item of items) {
+        if (!item.description || item.description.trim().length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'Descrição do item é obrigatória',
+          });
+        }
+        if (item.description.length > 200) {
+          return res.status(400).json({
+            success: false,
+            error: 'Descrição do item muito longa (max 200)',
+          });
+        }
+        if (!item.quantity || item.quantity < 1 || item.quantity > 999) {
+          return res.status(400).json({
+            success: false,
+            error: 'Quantidade inválida (1-999)',
+          });
+        }
+        if (!item.unit_price || item.unit_price <= 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'Preço unitário deve ser maior que zero',
+          });
+        }
+      }
+
+      // Valida customer (opcional mas se tiver, valida)
+      if (customer) {
+        if (customer.name && typeof customer.name !== 'string') {
+          return res.status(400).json({
+            success: false,
+            error: 'Nome do cliente inválido',
+          });
+        }
+        if (customer.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Email do cliente inválido',
+          });
+        }
+        if (customer.phone && !/^\+55\d{10,11}$/.test(customer.phone)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Telefone deve estar no formato +55XXXXXXXXXXX',
+          });
+        }
+      }
+
+      // Valida external_reference (opcional)
+      if (external_reference && external_reference.length > 100) {
+        return res.status(400).json({
+          success: false,
+          error: 'external_reference muito longo (max 100)',
+        });
+      }
+
+      // Valida return_url (opcional)
+      if (return_url && !/^https?:\/\/[^\s]+$/.test(return_url)) {
+        return res.status(400).json({
+          success: false,
+          error: 'URL de retorno inválida',
+        });
+      }
 
       // ===========================================
-      // CALCULA TOTAL (CENTAVOS)
+      // PROCESSAMENTO
       // ===========================================
+      const order_nsu = external_reference || `order-${Date.now()}`;
+
+      // Calcula total em centavos
       const totalCentavos = items.reduce(
         (sum: number, item: any) => {
           const price = Number(item.unit_price);
@@ -93,25 +121,16 @@ router.post(
         throw new Error('Valor total inválido');
       }
 
-      // ===========================================
-      // CALL SERVICE (FORMATO CORRETO)
-      // ===========================================
+      // Chama o serviço
       const result = await paymentService.createPaymentLink({
         amountCentavos: totalCentavos,
-
         description: items
           .map((item: any) => item.description)
           .join(', ')
           .slice(0, 200),
-
         orderNsu: order_nsu,
-
-        redirectUrl:
-          return_url || process.env.INFINITEPAY_RETURN_URL,
-
-        webhookUrl:
-          process.env.INFINITEPAY_CALLBACK_URL,
-
+        redirectUrl: return_url || process.env.INFINITEPAY_RETURN_URL,
+        webhookUrl: process.env.INFINITEPAY_CALLBACK_URL,
         customer: customer
           ? {
               name: customer.name?.trim(),
