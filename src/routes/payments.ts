@@ -1,64 +1,187 @@
+// src/routes/payments.ts
 import { Router, Request, Response } from 'express';
-import { criarLinkPagamentoInfinitePay, Customer } from '../services/infinitepay';
-import pino from 'pino';  // Novo: logger estruturado
-
-const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'info' : 'debug' });
+import { body, validationResult } from 'express-validator';
+import { InfinitePayService } from '../services/infinitepay';
+import { logger } from '../utils/logger';
+import { limiter } from '../middleware/rate-limit';
 
 const router = Router();
+const paymentService = InfinitePayService.getInstance();
 
-router.post('/create', async (req: Request, res: Response) => {
-  const startTime = Date.now();  // Novo: medir tempo total
-  const body = req.body;
+// ===========================================
+// VALIDATION
+// ===========================================
+const validateCreatePayment = [
+  body('items')
+    .isArray({ min: 1 })
+    .withMessage('O carrinho deve conter pelo menos um item'),
 
-  if (!body) {
-    return res.status(400).json({ error: 'Body ausente' });
-  }
+  body('items.*.description')
+    .trim()
+    .isString()
+    .isLength({ min: 1, max: 200 }),
 
-  // Validação otimizada: use Number.parseFloat para precisão
-  const amountNumber = Number.parseFloat(body.amount);
-  if (isNaN(amountNumber) || amountNumber <= 0) {
-    return res.status(400).json({ error: 'amount inválido' });
-  }
-  const amountCentavos = Math.round(amountNumber * 100);  // Ok, mas considere BigInt para valores grandes: BigInt(Math.round(...))
+  body('items.*.quantity')
+    .isInt({ min: 1, max: 999 }),
 
-  // Customer com validação extra
-  let customer: Customer | undefined;
-  if (body.customer) {
-    const name = body.customer.name?.trim();
-    const email = body.customer.email?.trim().toLowerCase();
+  body('items.*.unit_price')
+    .isFloat({ gt: 0 }),
 
-    if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {  // Novo: regex simples para email válido
-      return res.status(400).json({ error: 'customer.name e customer.email válidos obrigatórios' });
+  body('customer').optional().isObject(),
+
+  body('customer.name').optional().isString().notEmpty(),
+
+  body('customer.email').optional().isEmail(),
+
+  body('customer.phone')
+    .optional()
+    .matches(/^\+55\d{10,11}$/),
+
+  body('external_reference')
+    .optional()
+    .isString()
+    .isLength({ max: 100 }),
+
+  body('return_url')
+    .optional()
+    .isURL(),
+];
+
+// ===========================================
+// CREATE PAYMENT
+// ===========================================
+router.post(
+  '/create',
+  limiter,
+  validateCreatePayment,
+  async (req: Request, res: Response) => {
+    const startTime = Date.now();
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dados inválidos',
+        details: errors.array(),
+      });
     }
 
-    customer = { name, email };
+    try {
+      const {
+        items,
+        customer,
+        external_reference,
+        return_url,
+      } = req.body;
+
+      const order_nsu =
+        external_reference || `order-${Date.now()}`;
+
+      // ===========================================
+      // CALCULA TOTAL (CENTAVOS)
+      // ===========================================
+      const totalCentavos = items.reduce(
+        (sum: number, item: any) => {
+          const price = Number(item.unit_price);
+          const qty = Number(item.quantity);
+          return sum + Math.round(price * 100 * qty);
+        },
+        0
+      );
+
+      if (totalCentavos <= 0) {
+        throw new Error('Valor total inválido');
+      }
+
+      // ===========================================
+      // CALL SERVICE (FORMATO CORRETO)
+      // ===========================================
+      const result = await paymentService.createPaymentLink({
+        amountCentavos: totalCentavos,
+
+        description: items
+          .map((item: any) => item.description)
+          .join(', ')
+          .slice(0, 200),
+
+        orderNsu: order_nsu,
+
+        redirectUrl:
+          return_url || process.env.INFINITEPAY_RETURN_URL,
+
+        webhookUrl:
+          process.env.INFINITEPAY_CALLBACK_URL,
+
+        customer: customer
+          ? {
+              name: customer.name?.trim(),
+              email: customer.email?.trim().toLowerCase(),
+            }
+          : undefined,
+      });
+
+      const duration = Date.now() - startTime;
+
+      logger.info(
+        {
+          duration,
+          order_nsu,
+          total_centavos: totalCentavos,
+          link: result.link,
+        },
+        'Pagamento criado com sucesso'
+      );
+
+      return res.status(201).json({
+        success: true,
+        link: result.link,
+        slug: result.slug,
+        order_nsu,
+        total: (totalCentavos / 100).toFixed(2),
+        duration_ms: duration,
+      });
+
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+
+      logger.error(
+        {
+          error: error.message,
+          duration,
+          stack: error.stack,
+        },
+        'Falha ao criar pagamento'
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao criar pagamento',
+      });
+    }
   }
+);
 
+// ===========================================
+// STATUS
+// ===========================================
+router.get('/status', async (req: Request, res: Response) => {
   try {
-    const result = await criarLinkPagamentoInfinitePay({
-      amountCentavos,
-      description: body.description?.trim().slice(0, 200),  // Novo: limita description para evitar rejeições na API
-      customer,
-      orderNsu: body.order_nsu,
-    });
+    const start = Date.now();
+    const isHealthy = await paymentService.checkHealth();
+    const latency = Date.now() - start;
 
-    const duration = Date.now() - startTime;
-    logger.info({ duration, order_nsu: body.order_nsu }, 'Pagamento criado com sucesso');
-
-    return res.status(201).json({
-      type: 'infinitepay_checkout',
-      link: result.link,
-      slug: result.slug,
-      order_nsu: body.order_nsu,
+    return res.json({
+      success: true,
+      status: isHealthy ? 'connected' : 'disconnected',
+      latency_ms: latency,
+      timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    const duration = Date.now() - startTime;
-    logger.error({ error: error.message, stack: error.stack, duration, order_nsu: body.order_nsu }, 'Falha ao criar pagamento');
-
-    if (error.response) {
-      return res.status(502).json({ error: `Falha InfinitePay: HTTP ${error.response.status} - ${error.response.data?.message || 'Detalhes indisponíveis'}` });
-    }
-    return res.status(502).json({ error: `Falha ao criar pagamento: ${error.message}` });
+    return res.status(503).json({
+      success: false,
+      status: 'disconnected',
+      error: error.message,
+    });
   }
 });
 
