@@ -7,7 +7,7 @@ import { securityHeaders, validateContentType } from './middleware/security';
 import { logger } from './utils/logger';
 import { warmupInfinitePay } from './utils/warmup';
 import paymentsRouter from './routes/payments';
-
+import { isWarmupComplete } from './utils/warmupStatus';
 const app = express();
 
 // ===============================
@@ -39,7 +39,7 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     memory: process.memoryUsage(),
     cpu_cores: os.cpus().length,
-    warmup_status: global.warmupComplete ? 'completed' : 'pending',
+    warmup_status: isWarmupComplete() ? 'completed' : 'pending',
   });
 });
 

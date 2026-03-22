@@ -1,5 +1,5 @@
 // src/services/infinitepay.ts
-import { infiniteAxios } from '../lib/axios-client.ts';
+import { infiniteAxios } from '../lib/axios-client';
 import { paymentCache } from '../lib/cache';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
