@@ -1,13 +1,12 @@
-// src/utils/logger.ts
-import pino from 'pino';
+import pino, { type Logger, type Bindings } from 'pino';
 import { env } from '../config/env';
 import { LOG_LEVELS } from '../config/constantes';
 
-export const logger = pino({
-  level: LOG_LEVELS[env.NODE_ENV],
+export const logger: Logger = pino({
+  level: LOG_LEVELS[env.NODE_ENV as keyof typeof LOG_LEVELS],
   formatters: {
-    level: (label) => ({ level: label }),
-    bindings: (bindings) => ({
+    level: (label: string) => ({ level: label }),
+    bindings: (bindings: Bindings) => ({
       pid: bindings.pid,
       host: bindings.hostname,
     }),
