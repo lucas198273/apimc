@@ -1,7 +1,7 @@
 {
   "name": "infinitepay-api",
   "version": "1.0.0",
-  "type": "module",
+  "description": "API for InfinitePay application",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
