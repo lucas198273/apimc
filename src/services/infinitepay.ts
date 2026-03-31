@@ -71,27 +71,26 @@ export class InfinitePayService {
   private isValidEmail(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
-
-  private async executePaymentRequest(params: PaymentParams): Promise<PaymentResult> {
+private async executePaymentRequest(params: PaymentParams): Promise<PaymentResult> {
     const payload = this.buildPayload(params);
     
-    logger.debug({ orderNsu: params.orderNsu }, 'Enviando requisição para InfinitePay');
+    logger.debug('Enviando requisição para InfinitePay', { orderNsu: params.orderNsu });
 
     try {
       const response = await infiniteAxios.post(INFINITEPAY_API.CHECKOUT_PATH, payload);
       const result = this.extractPaymentResult(response.data);
 
-      logger.info({
+      logger.info('Pagamento criado com sucesso', {
         orderNsu: params.orderNsu,
         status: response.status,
-      }, 'Pagamento criado com sucesso');
+      });
 
       return result;
     } catch (error) {
-      logger.error({ 
+      logger.error('Falha ao criar pagamento', { 
         error: error instanceof Error ? error.message : 'Erro desconhecido',
         orderNsu: params.orderNsu 
-      }, 'Falha ao criar pagamento');
+      });
       
       throw this.normalizeError(error);
     }

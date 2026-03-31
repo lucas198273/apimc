@@ -141,15 +141,13 @@ router.post(
 
       const duration = Date.now() - startTime;
 
-      logger.info(
-        {
-          duration,
-          order_nsu,
-          total_centavos: totalCentavos,
-          link: result.link,
-        },
-        'Pagamento criado com sucesso'
-      );
+      // ✅ LOG DE SUCESSO – mensagem primeiro, meta depois
+      logger.info('Pagamento criado com sucesso', {
+        duration,
+        order_nsu,
+        total_centavos: totalCentavos,
+        link: result.link,
+      });
 
       return res.status(201).json({
         success: true,
@@ -163,14 +161,12 @@ router.post(
     } catch (error: any) {
       const duration = Date.now() - startTime;
 
-      logger.error(
-        {
-          error: error.message,
-          duration,
-          stack: error.stack,
-        },
-        'Falha ao criar pagamento'
-      );
+      // ✅ LOG DE ERRO – mensagem primeiro, meta depois
+      logger.error('Falha ao criar pagamento', {
+        error: error.message,
+        duration,
+        stack: error.stack,
+      });
 
       return res.status(500).json({
         success: false,

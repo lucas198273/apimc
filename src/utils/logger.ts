@@ -1,25 +1,24 @@
-import pino, { type Logger, type Bindings } from 'pino';
-import { env } from '../config/env';
-import { LOG_LEVELS } from '../config/constantes';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-export const logger: Logger = pino({
-  level: LOG_LEVELS[env.NODE_ENV as keyof typeof LOG_LEVELS],
-  formatters: {
-    level: (label: string) => ({ level: label }),
-    bindings: (bindings: Bindings) => ({
-      pid: bindings.pid,
-      host: bindings.hostname,
-    }),
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+const formatMessage = (level: LogLevel, message: string, meta?: any): string => {
+  const timestamp = new Date().toISOString();
+  const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
+  return `[${timestamp}] ${level.toUpperCase()}: ${message}${metaStr}`;
+};
+
+export const logger = {
+  debug: (message: string, meta?: any) => {
+    if (isDevelopment) console.log(formatMessage('debug', message, meta));
   },
-  timestamp: pino.stdTimeFunctions.isoTime,
-  ...(env.NODE_ENV === 'development' && {
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
-      },
-    },
-  }),
-});
+  info: (message: string, meta?: any) => {
+    console.log(formatMessage('info', message, meta));
+  },
+  warn: (message: string, meta?: any) => {
+    console.warn(formatMessage('warn', message, meta));
+  },
+  error: (message: string, meta?: any) => {
+    console.error(formatMessage('error', message, meta));
+  },
+};

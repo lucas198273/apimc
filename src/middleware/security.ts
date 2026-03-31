@@ -1,22 +1,11 @@
-// src/middleware/security.ts
 import { Request, Response, NextFunction } from 'express';
-import helmet from 'helmet';
 
-export const securityHeaders = helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true,
-  },
-});
+export const securityHeaders = (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+};
 
 export const validateContentType = (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'POST' && !req.is('application/json')) {
