@@ -1,4 +1,3 @@
-// src/services/infinitepay.ts
 import { infiniteAxios } from '../lib/axios-client';
 import { paymentCache } from '../lib/cache';
 import { logger } from '../utils/logger';
@@ -11,8 +10,13 @@ export interface Customer {
 }
 
 export interface PaymentParams {
-  amountCentavos: number;
-  description?: string;
+  amountCentavos: number;            // total em centavos (opcional, mas mantido)
+  items?: Array<{                    // ← NOVO: array de itens
+    description: string;
+    quantity: number;
+    unit_price: number;              // em reais
+  }>;
+  description?: string;              // mantido para fallback (se não houver items)
   customer?: Customer | null;
   orderNsu?: string;
   redirectUrl?: string;
@@ -46,7 +50,6 @@ export class InfinitePayService {
   async createPaymentLink(params: PaymentParams): Promise<PaymentResult> {
     this.validateParams(params);
 
-    // Usa cache se tiver orderNsu
     if (params.orderNsu) {
       return paymentCache.getOrSet(
         `order_${params.orderNsu}`,
@@ -62,7 +65,6 @@ export class InfinitePayService {
     if (params.amountCentavos <= 0) {
       throw new Error('amountCentavos deve ser maior que zero');
     }
-
     if (params.customer && !this.isValidEmail(params.customer.email)) {
       throw new Error('Email do cliente inválido');
     }
@@ -71,7 +73,8 @@ export class InfinitePayService {
   private isValidEmail(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
-private async executePaymentRequest(params: PaymentParams): Promise<PaymentResult> {
+
+  private async executePaymentRequest(params: PaymentParams): Promise<PaymentResult> {
     const payload = this.buildPayload(params);
     
     logger.debug('Enviando requisição para InfinitePay', { orderNsu: params.orderNsu });
@@ -91,19 +94,31 @@ private async executePaymentRequest(params: PaymentParams): Promise<PaymentResul
         error: error instanceof Error ? error.message : 'Erro desconhecido',
         orderNsu: params.orderNsu 
       });
-      
       throw this.normalizeError(error);
     }
   }
 
   private buildPayload(params: PaymentParams): any {
-    const payload: any = {
-      handle: this.handle,
-      items: [{
+    // 1. Define os itens a serem enviados (prioriza o array items, se existir)
+    let itemsPayload;
+    if (params.items && params.items.length > 0) {
+      itemsPayload = params.items.map((item) => ({
+        quantity: item.quantity,
+        price: item.unit_price,          // em reais (a InfinitePay espera reais)
+        description: item.description.substring(0, 200),
+      }));
+    } else {
+      // Fallback: usa o campo description (agregado) e cria um único item
+      itemsPayload = [{
         quantity: 1,
         price: params.amountCentavos / 100,
         description: params.description?.trim().slice(0, 200) || 'Pagamento',
-      }],
+      }];
+    }
+
+    const payload: any = {
+      handle: this.handle,
+      items: itemsPayload,
       redirect_url: params.redirectUrl || this.redirectUrl,
       webhook_url: params.webhookUrl || this.webhookUrl,
     };
@@ -121,11 +136,9 @@ private async executePaymentRequest(params: PaymentParams): Promise<PaymentResul
 
   private extractPaymentResult(data: any): PaymentResult {
     const link = data.link || data.url || data.checkout_url || data.payment_url || data.invoice_url;
-    
     if (!link) {
       throw new Error('InfinitePay não retornou link de pagamento');
     }
-
     return {
       link,
       slug: data.slug || data.invoice_slug || null,
@@ -134,7 +147,6 @@ private async executePaymentRequest(params: PaymentParams): Promise<PaymentResul
 
   private normalizeError(error: unknown): Error {
     if (error instanceof Error) return error;
-    
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any;
       if (axiosError.response?.data?.message) {
@@ -144,7 +156,6 @@ private async executePaymentRequest(params: PaymentParams): Promise<PaymentResul
         return new Error(`InfinitePay HTTP ${axiosError.response.status}`);
       }
     }
-    
     return new Error('Erro desconhecido na comunicação com InfinitePay');
   }
 

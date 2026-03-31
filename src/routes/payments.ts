@@ -107,7 +107,7 @@ router.post(
       // ===========================================
       const order_nsu = external_reference || `order-${Date.now()}`;
 
-      // Calcula total em centavos
+      // Calcula total em centavos (opcional, mantido para resposta)
       const totalCentavos = items.reduce(
         (sum: number, item: any) => {
           const price = Number(item.unit_price);
@@ -121,13 +121,10 @@ router.post(
         throw new Error('Valor total inválido');
       }
 
-      // Chama o serviço
+      // 🔥 CHAMADA CORRIGIDA: envia o array de itens para o serviço
       const result = await paymentService.createPaymentLink({
         amountCentavos: totalCentavos,
-        description: items
-          .map((item: any) => item.description)
-          .join(', ')
-          .slice(0, 200),
+        items: items,                         // <-- passa os itens originais
         orderNsu: order_nsu,
         redirectUrl: return_url || process.env.INFINITEPAY_RETURN_URL,
         webhookUrl: process.env.INFINITEPAY_CALLBACK_URL,
