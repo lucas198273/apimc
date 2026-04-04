@@ -12,10 +12,13 @@ interface EnvConfig {
   RATE_LIMIT_WINDOW: number;
   RATE_LIMIT_MAX: number;
   CACHE_TTL: number;
+  // Supabase
+  SUPABASE_URL: string;
+  SUPABASE_ANON_KEY: string;
 }
 
 function validateEnv(): EnvConfig {
-  const required = ['INFINITEPAY_HANDLE'];
+  const required = ['INFINITEPAY_HANDLE', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'];
   
   for (const field of required) {
     if (!process.env[field]) {
@@ -30,9 +33,11 @@ function validateEnv(): EnvConfig {
     INFINITE_WEBHOOK_URL: process.env.INFINITE_WEBHOOK_URL,
     PORT: Number(process.env.PORT) || 10000,
     NODE_ENV: (process.env.NODE_ENV as EnvConfig['NODE_ENV']) || 'production',
-    RATE_LIMIT_WINDOW: Number(process.env.RATE_LIMIT_WINDOW) || 15 * 60 * 1000, // 15 minutos
+    RATE_LIMIT_WINDOW: Number(process.env.RATE_LIMIT_WINDOW) || 15 * 60 * 1000,
     RATE_LIMIT_MAX: Number(process.env.RATE_LIMIT_MAX) || 100,
     CACHE_TTL: Number(process.env.CACHE_TTL) || 5000,
+    SUPABASE_URL: process.env.SUPABASE_URL!,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY!,
   };
 }
 

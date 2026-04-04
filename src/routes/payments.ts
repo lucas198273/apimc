@@ -3,7 +3,8 @@ import { Router, Request, Response } from 'express';
 import { InfinitePayService } from '../services/infinitepay';
 import { logger } from '../utils/logger';
 import { limiter } from '../middleware/rate-limit';
-import { salvarPedido,getPedidosByEmail } from '../services/orderService';
+import { salvarPedido, getPedidosByEmail } from '../services/orderService'; // ← importações essenciais
+
 const router = Router();
 const paymentService = InfinitePayService.getInstance();
 
@@ -19,15 +20,10 @@ router.post(
     try {
       const { items, customer, external_reference, return_url } = req.body;
 
-      // ====================== VALIDAÇÃO RÁPIDA ======================
       if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'O carrinho deve conter pelo menos um item',
-        });
+        return res.status(400).json({ success: false, error: 'O carrinho deve conter pelo menos um item' });
       }
 
-      // Validação rápida dos itens
       for (const item of items) {
         if (!item?.description?.trim()) {
           return res.status(400).json({ success: false, error: 'Descrição do item é obrigatória' });
@@ -43,7 +39,6 @@ router.post(
         }
       }
 
-      // Validações leves de customer e campos opcionais
       if (customer?.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
         return res.status(400).json({ success: false, error: 'Email do cliente inválido' });
       }
@@ -57,18 +52,13 @@ router.post(
         return res.status(400).json({ success: false, error: 'URL de retorno inválida' });
       }
 
-      // ====================== PROCESSAMENTO ======================
       const order_nsu = external_reference || `order-${Date.now()}`;
-
       const totalCentavos = items.reduce((sum: number, item: any) => {
         return sum + Math.round(Number(item.unit_price) * 100 * Number(item.quantity));
       }, 0);
 
-      if (totalCentavos <= 0) {
-        throw new Error('Valor total inválido');
-      }
+      if (totalCentavos <= 0) throw new Error('Valor total inválido');
 
-      // Chamada principal
       const result = await paymentService.createPaymentLink({
         amountCentavos: totalCentavos,
         items,
@@ -82,13 +72,7 @@ router.post(
       });
 
       const duration = Date.now() - startTime;
-
-      logger.info('Pagamento criado com sucesso', {
-        duration,
-        order_nsu,
-        total_centavos: totalCentavos,
-        link: result.link,
-      });
+      logger.info('Pagamento criado com sucesso', { duration, order_nsu, total_centavos: totalCentavos, link: result.link });
 
       return res.status(201).json({
         success: true,
@@ -98,29 +82,16 @@ router.post(
         total: (totalCentavos / 100).toFixed(2),
         duration_ms: duration,
       });
-
     } catch (error: any) {
-      const duration = Date.now() - startTime;
-
-      logger.error('Falha ao criar pagamento', {
-        error: error.message,
-        duration,
-        // stack: error.stack,   ← Removido em produção (muito pesado)
-      });
-
-      return res.status(500).json({
-        success: false,
-        error: error.message || 'Erro ao criar pagamento',
-      });
+      logger.error('Falha ao criar pagamento', { error: error.message, duration: Date.now() - startTime });
+      return res.status(500).json({ success: false, error: error.message || 'Erro ao criar pagamento' });
     }
   }
 );
 
 // ===========================================
-// WEBHOOOK PEDIDO DE PAGAMENTO (exemplo, ajuste conforme necessário)
+// WEBHOOK - INFINITEPAY
 // ===========================================
-// ====================== WEBHOOK - INFINITEPAY ======================
-// ====================== WEBHOOK INFINITEPAY ======================
 router.post('/webhook/infinitepay', async (req: Request, res: Response) => {
   const payload = req.body;
 
@@ -131,9 +102,7 @@ router.post('/webhook/infinitepay', async (req: Request, res: Response) => {
       amount: payload.amount,
     });
 
-    // Salva apenas se o pagamento foi aprovado
     if (['approved', 'paid', 'success', 'completed'].includes(payload.status?.toLowerCase())) {
-      
       await salvarPedido({
         order_nsu: payload.order_nsu || payload.external_reference,
         slug: payload.slug,
@@ -144,35 +113,24 @@ router.post('/webhook/infinitepay', async (req: Request, res: Response) => {
         items: payload.items,
         paid_at: payload.paid_at,
       });
-
-      logger.info('✅ Pedido salvo no SQLite com sucesso');
+      logger.info('✅ Pedido salvo no Supabase com sucesso');
     }
 
-    // Sempre responda 200 OK
     return res.status(200).json({ received: true });
-
   } catch (error: any) {
-    logger.error('❌ Erro no webhook', { 
-      error: error.message,
-      order_nsu: payload.order_nsu 
-    });
-    
+    logger.error('❌ Erro no webhook', { error: error.message, order_nsu: payload.order_nsu });
     return res.status(200).json({ received: true });
   }
 });
+
 // ===========================================
-// Get PEDIDOS POR EMAIL (exemplo de endpoint adicional para consulta)
+// MEUS PEDIDOS (consulta por email)
 // ===========================================
-// ====================== MEUS PEDIDOS (Cliente vê apenas os dele) ======================
-// ====================== MEUS PEDIDOS - Versão Temporária ======================
 router.get('/meus-pedidos', async (req: Request, res: Response) => {
   const { email } = req.query;
 
   if (!email || typeof email !== 'string' || !email.includes('@')) {
-    return res.status(400).json({
-      success: false,
-      error: 'Email válido é obrigatório'
-    });
+    return res.status(400).json({ success: false, error: 'Email válido é obrigatório' });
   }
 
   try {
@@ -184,39 +142,26 @@ router.get('/meus-pedidos', async (req: Request, res: Response) => {
       total_pedidos: pedidos.length,
       pedidos: pedidos.map((p: any) => ({
         ...p,
-        items: JSON.parse(p.items || '[]'), // converte de volta para array
+        items: typeof p.items === 'string' ? JSON.parse(p.items) : p.items,
       })),
     });
   } catch (error: any) {
     logger.error('Erro ao buscar pedidos', { error: error.message, email });
-    return res.status(500).json({
-      success: false,
-      error: 'Erro interno ao buscar pedidos'
-    });
+    return res.status(500).json({ success: false, error: 'Erro interno ao buscar pedidos' });
   }
 });
-// // ===========================================
+
+// ===========================================
 // STATUS
 // ===========================================
 router.get('/status', async (req: Request, res: Response) => {
   const start = Date.now();
-
   try {
     const isHealthy = await paymentService.checkHealth();
     const latency = Date.now() - start;
-
-    return res.json({
-      success: true,
-      status: isHealthy ? 'connected' : 'disconnected',
-      latency_ms: latency,
-      timestamp: new Date().toISOString(),
-    });
+    return res.json({ success: true, status: isHealthy ? 'connected' : 'disconnected', latency_ms: latency, timestamp: new Date().toISOString() });
   } catch (error: any) {
-    return res.status(503).json({
-      success: false,
-      status: 'disconnected',
-      error: error.message,
-    });
+    return res.status(503).json({ success: false, status: 'disconnected', error: error.message });
   }
 });
 

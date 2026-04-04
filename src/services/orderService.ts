@@ -1,4 +1,4 @@
-import db from '../database/db';
+import { supabase } from '../lib/supabase';
 
 export interface OrderData {
   order_nsu: string;
@@ -6,50 +6,43 @@ export interface OrderData {
   amount: number;
   status: string;
   payment_method?: string;
-  customer?: {
-    name?: string;
-    email?: string;
-  };
+  customer?: { name?: string; email?: string };
   items?: any[];
   paid_at?: string;
 }
 
-// Salvar / Atualizar pedido
 export async function salvarPedido(orderData: OrderData) {
-  const stmt = db.prepare(`
-    INSERT INTO orders (
-      order_nsu, slug, amount, status, payment_method, 
-      customer_name, customer_email, items, paid_at
+  const { data, error } = await supabase
+    .from('orders')
+    .upsert(
+      {
+        order_nsu: orderData.order_nsu,
+        slug: orderData.slug,
+        amount: orderData.amount,
+        status: orderData.status,
+        payment_method: orderData.payment_method,
+        customer_name: orderData.customer?.name || null,
+        customer_email: orderData.customer?.email,
+        items: orderData.items || [],
+        paid_at: orderData.paid_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'order_nsu' }
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(order_nsu) DO UPDATE SET
-      status = excluded.status,
-      paid_at = excluded.paid_at,
-      updated_at = CURRENT_TIMESTAMP
-  `);
+    .select()
+    .single();
 
-  stmt.run(
-    orderData.order_nsu,
-    orderData.slug,
-    orderData.amount,
-    orderData.status,
-    orderData.payment_method,
-    orderData.customer?.name || null,
-    orderData.customer?.email || null,
-    JSON.stringify(orderData.items || []),
-    orderData.paid_at || null
-  );
-
-  return { success: true, order_nsu: orderData.order_nsu };
+  if (error) throw new Error(error.message);
+  return { success: true, order_nsu: data.order_nsu, id: data.id };
 }
 
-// Buscar pedidos de UM cliente específico
 export async function getPedidosByEmail(email: string) {
-  const stmt = db.prepare(`
-    SELECT * FROM orders 
-    WHERE customer_email = ? 
-    ORDER BY created_at DESC
-  `);
-  
-  return stmt.all(email);
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('customer_email', email.toLowerCase().trim())
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data || [];
 }
