@@ -3,7 +3,7 @@ import { Router, Request, Response } from 'express';
 import { InfinitePayService } from '../services/infinitepay';
 import { logger } from '../utils/logger';
 import { limiter } from '../middleware/rate-limit';
-import { salvarPedido, getPedidosByEmail } from '../services/orderService'; // ← importações essenciais
+import { salvarPedido, getPedidosByEmail } from '../services/orderService';
 
 const router = Router();
 const paymentService = InfinitePayService.getInstance();
@@ -19,6 +19,9 @@ router.post(
 
     try {
       const { items, customer, external_reference, return_url } = req.body;
+
+      // 🔍 LOG 1: items recebidos do frontend
+      console.log('🔍 [1] Items recebidos do frontend:', JSON.stringify(items, null, 2));
 
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ success: false, error: 'O carrinho deve conter pelo menos um item' });
@@ -57,7 +60,13 @@ router.post(
         return sum + Math.round(Number(item.unit_price) * 100 * Number(item.quantity));
       }, 0);
 
+      // 🔍 LOG 2: totalCentavos calculado
+      console.log(`🔍 [2] totalCentavos calculado: ${totalCentavos} (equivale a R$ ${(totalCentavos / 100).toFixed(2)})`);
+
       if (totalCentavos <= 0) throw new Error('Valor total inválido');
+
+      // 🔍 LOG 3: itens que serão enviados para o serviço
+      console.log('🔍 [3] Itens enviados para createPaymentLink:', JSON.stringify(items, null, 2));
 
       const result = await paymentService.createPaymentLink({
         amountCentavos: totalCentavos,

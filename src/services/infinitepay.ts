@@ -1,3 +1,4 @@
+// src/services/infinitepay.ts
 import { infiniteAxios } from '../lib/axios-client';
 import { paymentCache } from '../lib/cache';
 import { logger } from '../utils/logger';
@@ -10,13 +11,13 @@ export interface Customer {
 }
 
 export interface PaymentParams {
-  amountCentavos: number;            // total em centavos (opcional, mas mantido)
-  items?: Array<{                    // ← NOVO: array de itens
+  amountCentavos?: number;            // opcional – não é mais usado
+  items: Array<{                      // ← obrigatório
     description: string;
     quantity: number;
-    unit_price: number;              // em reais
+    unit_price: number;              // em reais (ex: 15.00)
   }>;
-  description?: string;              // mantido para fallback (se não houver items)
+  description?: string;
   customer?: Customer | null;
   orderNsu?: string;
   redirectUrl?: string;
@@ -62,8 +63,9 @@ export class InfinitePayService {
   }
 
   private validateParams(params: PaymentParams): void {
-    if (params.amountCentavos <= 0) {
-      throw new Error('amountCentavos deve ser maior que zero');
+    // Obrigatório ter items
+    if (!params.items || params.items.length === 0) {
+      throw new Error('Nenhum item informado para o pagamento');
     }
     if (params.customer && !this.isValidEmail(params.customer.email)) {
       throw new Error('Email do cliente inválido');
@@ -99,22 +101,12 @@ export class InfinitePayService {
   }
 
   private buildPayload(params: PaymentParams): any {
-    // 1. Define os itens a serem enviados (prioriza o array items, se existir)
-    let itemsPayload;
-    if (params.items && params.items.length > 0) {
-      itemsPayload = params.items.map((item) => ({
-        quantity: item.quantity,
-        price: item.unit_price,          // em reais (a InfinitePay espera reais)
-        description: item.description.substring(0, 200),
-      }));
-    } else {
-      // Fallback: usa o campo description (agregado) e cria um único item
-      itemsPayload = [{
-        quantity: 1,
-        price: params.amountCentavos / 100,
-        description: params.description?.trim().slice(0, 200) || 'Pagamento',
-      }];
-    }
+    // Usa diretamente os itens, sem divisão por 100
+    const itemsPayload = params.items.map((item) => ({
+      quantity: item.quantity,
+      price: item.unit_price * 10,          // ✅ em reais, como recebido do frontend
+      description: item.description.substring(0, 200),
+    }));
 
     const payload: any = {
       handle: this.handle,
