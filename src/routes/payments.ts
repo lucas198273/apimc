@@ -3,7 +3,7 @@ import { Router, Request, Response } from 'express';
 import { InfinitePayService } from '../services/infinitepay';
 import { logger } from '../utils/logger';
 import { limiter } from '../middleware/rate-limit';
-
+import { salvarPedido,getPedidosByEmail } from '../services/orderService';
 const router = Router();
 const paymentService = InfinitePayService.getInstance();
 
@@ -117,6 +117,85 @@ router.post(
 );
 
 // ===========================================
+// WEBHOOOK PEDIDO DE PAGAMENTO (exemplo, ajuste conforme necessário)
+// ===========================================
+// ====================== WEBHOOK - INFINITEPAY ======================
+// ====================== WEBHOOK INFINITEPAY ======================
+router.post('/webhook/infinitepay', async (req: Request, res: Response) => {
+  const payload = req.body;
+
+  try {
+    logger.info('🔄 Webhook InfinitePay recebido', {
+      order_nsu: payload.order_nsu || payload.external_reference,
+      status: payload.status,
+      amount: payload.amount,
+    });
+
+    // Salva apenas se o pagamento foi aprovado
+    if (['approved', 'paid', 'success', 'completed'].includes(payload.status?.toLowerCase())) {
+      
+      await salvarPedido({
+        order_nsu: payload.order_nsu || payload.external_reference,
+        slug: payload.slug,
+        amount: payload.amount || payload.value,
+        status: payload.status,
+        payment_method: payload.payment_method,
+        customer: payload.customer,
+        items: payload.items,
+        paid_at: payload.paid_at,
+      });
+
+      logger.info('✅ Pedido salvo no SQLite com sucesso');
+    }
+
+    // Sempre responda 200 OK
+    return res.status(200).json({ received: true });
+
+  } catch (error: any) {
+    logger.error('❌ Erro no webhook', { 
+      error: error.message,
+      order_nsu: payload.order_nsu 
+    });
+    
+    return res.status(200).json({ received: true });
+  }
+});
+// ===========================================
+// Get PEDIDOS POR EMAIL (exemplo de endpoint adicional para consulta)
+// ===========================================
+// ====================== MEUS PEDIDOS (Cliente vê apenas os dele) ======================
+// ====================== MEUS PEDIDOS - Versão Temporária ======================
+router.get('/meus-pedidos', async (req: Request, res: Response) => {
+  const { email } = req.query;
+
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return res.status(400).json({
+      success: false,
+      error: 'Email válido é obrigatório'
+    });
+  }
+
+  try {
+    const pedidos = await getPedidosByEmail(email.trim().toLowerCase());
+
+    return res.json({
+      success: true,
+      email: email.trim().toLowerCase(),
+      total_pedidos: pedidos.length,
+      pedidos: pedidos.map((p: any) => ({
+        ...p,
+        items: JSON.parse(p.items || '[]'), // converte de volta para array
+      })),
+    });
+  } catch (error: any) {
+    logger.error('Erro ao buscar pedidos', { error: error.message, email });
+    return res.status(500).json({
+      success: false,
+      error: 'Erro interno ao buscar pedidos'
+    });
+  }
+});
+// // ===========================================
 // STATUS
 // ===========================================
 router.get('/status', async (req: Request, res: Response) => {
