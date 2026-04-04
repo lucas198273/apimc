@@ -11,97 +11,71 @@ import { isWarmupComplete } from './utils/warmupStatus';
 
 const app = express();
 
-// ===============================
-// CONFIG BASE
-// ===============================
+// ====================== CONFIG ======================
 app.set('trust proxy', 1);
 
-// ===============================
-// MIDDLEWARES
-// ===============================
+// ====================== MIDDLEWARES (ordem otimizada) ======================
 app.use(securityHeaders);
 app.use(corsMiddleware);
 app.use(express.json({ limit: '1mb' }));
 app.use(validateContentType);
 
-// ===============================
-// ROTAS
-// ===============================
+// ====================== ROTAS ======================
 app.use('/api/payments', paymentsRouter);
 
-// ===============================
-// HEALTH CHECK (OTIMIZADO)
-// ===============================
+// ====================== HEALTH CHECK (leve) ======================
 app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
     warmup: isWarmupComplete() ? 'done' : 'pending',
-    environment: env.NODE_ENV,
-    timestamp: new Date().toISOString(),
+    env: env.NODE_ENV,
     uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    cpu_cores: os.cpus().length,
+    timestamp: new Date().toISOString(),
   });
 });
 
 // Redirect raiz
-app.get('/', (req, res) => {
-  res.redirect('/health');
-});
+app.get('/', (req, res) => res.redirect('/health'));
 
-// ===============================
-// 404
-// ===============================
+// ====================== 404 + ERROR HANDLER ======================
 app.use((req, res) => {
   res.status(404).json({ error: 'Rota não encontrada' });
 });
 
-// ===============================
-// ERROR HANDLER
-// ===============================
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Erro não tratado', { 
     error: err.message, 
-    stack: err.stack,
     path: req.path,
     method: req.method,
   });
 
   res.status(500).json({ 
-    error: 'Erro interno do servidor',
-    request_id: req.headers['x-request-id'] || 'unknown',
+    error: 'Erro interno do servidor' 
   });
 });
 
-// ===============================
-// START SERVER + WARMUP
-// ===============================
-
-// ... resto do arquivo igual ...
-
-const server = app.listen(env.PORT, async () => {
+// ====================== START SERVER ======================
+const server = app.listen(env.PORT, () => {
   logger.info(`🚀 API rodando em http://localhost:${env.PORT} (${env.NODE_ENV})`);
-  logger.info(`📊 Servidor: ${os.cpus().length} CPUs, ${Math.round(os.totalmem() / 1024 / 1024 / 1024)}GB RAM`);
+  logger.info(`📊 CPUs: ${os.cpus().length} | RAM: ${Math.round(os.totalmem() / 1024 ** 3)}GB`);
 
-  // 🔥 WARM-UP SEGURO
-  await warmupInfinitePay();
+  // Warm-up em background (não bloqueia o start do servidor)
+  warmupInfinitePay().catch(err => {
+    logger.warn('Warm-up falhou no startup', { error: err.message });
+  });
 });
 
-// ===============================
-// GRACEFUL SHUTDOWN
-// ===============================
+// ====================== GRACEFUL SHUTDOWN ======================
 const shutdown = (signal: string) => {
-  logger.info(`${signal} recebido, iniciando shutdown...`);
-
+  logger.info(`${signal} recebido. Fechando servidor...`);
+  
   server.close(() => {
-    logger.info('Servidor HTTP fechado');
+    logger.info('Servidor HTTP fechado com sucesso');
     process.exit(0);
   });
 
-  setTimeout(() => {
-    logger.error('Shutdown forçado após timeout');
-    process.exit(1);
-  }, 10000);
+  // Força shutdown após 8 segundos
+  setTimeout(() => process.exit(1), 8000);
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
