@@ -1,44 +1,28 @@
-// src/services/infinitepay.ts
-import { infiniteAxios } from '../lib/axios-client';
-import { paymentCache } from '../lib/cache';
-import { logger } from '../utils/logger';
+// src/services/infinitepay.ts - VERSÃO PARA LINK INTEGRADO (SEM API)
 import { env } from '../config/env';
-import { INFINITEPAY_API } from '../config/constantes';
-
-export interface Customer {
-  name: string;
-  email: string;
-}
+import { logger } from '../utils/logger';
 
 export interface PaymentParams {
-  amountCentavos?: number;            // opcional – não é mais usado
-  items: Array<{                      // ← obrigatório
+  items: Array<{
     description: string;
     quantity: number;
-    unit_price: number;              // em reais (ex: 15.00)
+    unit_price: number;
   }>;
-  description?: string;
-  customer?: Customer | null;
+  customer?: { name: string; email: string };
   orderNsu?: string;
   redirectUrl?: string;
-  webhookUrl?: string;
 }
 
 export interface PaymentResult {
   link: string;
-  slug: string | null;
 }
 
 export class InfinitePayService {
   private static instance: InfinitePayService;
   private handle: string;
-  private redirectUrl?: string;
-  private webhookUrl?: string;
 
   private constructor() {
     this.handle = env.INFINITEPAY_HANDLE;
-    this.redirectUrl = env.INFINITE_REDIRECT_URL;
-    this.webhookUrl = env.INFINITE_WEBHOOK_URL;
   }
 
   static getInstance(): InfinitePayService {
@@ -49,114 +33,38 @@ export class InfinitePayService {
   }
 
   async createPaymentLink(params: PaymentParams): Promise<PaymentResult> {
-    this.validateParams(params);
-
-    if (params.orderNsu) {
-      return paymentCache.getOrSet(
-        `order_${params.orderNsu}`,
-        () => this.executePaymentRequest(params),
-        { skipCache: params.orderNsu.includes('no-cache') }
-      );
-    }
-
-    return this.executePaymentRequest(params);
-  }
-
-  private validateParams(params: PaymentParams): void {
-    // Obrigatório ter items
     if (!params.items || params.items.length === 0) {
-      throw new Error('Nenhum item informado para o pagamento');
+      throw new Error('Nenhum item informado');
     }
-    if (params.customer && !this.isValidEmail(params.customer.email)) {
-      throw new Error('Email do cliente inválido');
-    }
-  }
 
-  private isValidEmail(email: string): boolean {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  }
-
-  private async executePaymentRequest(params: PaymentParams): Promise<PaymentResult> {
-    const payload = this.buildPayload(params);
-    
-    logger.debug('Enviando requisição para InfinitePay', { orderNsu: params.orderNsu });
-
-    try {
-      const response = await infiniteAxios.post(INFINITEPAY_API.CHECKOUT_PATH, payload);
-      const result = this.extractPaymentResult(response.data);
-
-      logger.info('Pagamento criado com sucesso', {
-        orderNsu: params.orderNsu,
-        status: response.status,
-      });
-
-      return result;
-    } catch (error) {
-      logger.error('Falha ao criar pagamento', { 
-        error: error instanceof Error ? error.message : 'Erro desconhecido',
-        orderNsu: params.orderNsu 
-      });
-      throw this.normalizeError(error);
-    }
-  }
-
-  private buildPayload(params: PaymentParams): any {
-    // Usa diretamente os itens, sem divisão por 100
-    const itemsPayload = params.items.map((item) => ({
-      quantity: item.quantity,
-      price: item.unit_price * 10,          // ✅ em reais, como recebido do frontend
-      description: item.description.substring(0, 200),
+    // 🔥 CONSTRUIR LINK INTEGRADO (URL, não chamada API)
+    const itemsParam = params.items.map(item => ({
+      name: item.description.substring(0, 100),
+      price: Math.round(item.unit_price * 100), // Centavos
+      quantity: item.quantity
     }));
 
-    const payload: any = {
-      handle: this.handle,
-      items: itemsPayload,
-      redirect_url: params.redirectUrl || this.redirectUrl,
-      webhook_url: params.webhookUrl || this.webhookUrl,
-    };
-
-    if (params.customer) {
-      payload.customer = params.customer;
+    // Gerar order_nsu se não fornecido
+    const order_nsu = params.orderNsu || `order-${Date.now()}`;
+    
+    // URL base do checkout InfinitePay
+    let link = `https://checkout.infinitepay.io/${this.handle}?items=${JSON.stringify(itemsParam)}&order_nsu=${order_nsu}`;
+    
+    // Adicionar redirect_url se fornecido
+    if (params.redirectUrl) {
+      link += `&redirect_url=${encodeURIComponent(params.redirectUrl)}`;
+    }
+    
+    // Adicionar dados do cliente se fornecidos (opcional, agiliza checkout)
+    if (params.customer?.email) {
+      link += `&customer_email=${encodeURIComponent(params.customer.email)}`;
+    }
+    if (params.customer?.name) {
+      link += `&customer_name=${encodeURIComponent(params.customer.name)}`;
     }
 
-    if (params.orderNsu) {
-      payload.order_nsu = params.orderNsu;
-    }
-
-    return payload;
-  }
-
-  private extractPaymentResult(data: any): PaymentResult {
-    const link = data.link || data.url || data.checkout_url || data.payment_url || data.invoice_url;
-    if (!link) {
-      throw new Error('InfinitePay não retornou link de pagamento');
-    }
-    return {
-      link,
-      slug: data.slug || data.invoice_slug || null,
-    };
-  }
-
-  private normalizeError(error: unknown): Error {
-    if (error instanceof Error) return error;
-    if (error && typeof error === 'object' && 'response' in error) {
-      const axiosError = error as any;
-      if (axiosError.response?.data?.message) {
-        return new Error(`InfinitePay: ${axiosError.response.data.message}`);
-      }
-      if (axiosError.response?.status) {
-        return new Error(`InfinitePay HTTP ${axiosError.response.status}`);
-      }
-    }
-    return new Error('Erro desconhecido na comunicação com InfinitePay');
-  }
-
-  async checkHealth(): Promise<boolean> {
-    try {
-      await infiniteAxios.get('/status', { timeout: 3000 });
-      return true;
-    } catch {
-      return false;
-    }
+    console.log('✅ Link de pagamento gerado:', link);
+    
+    return { link };
   }
 }
