@@ -1,6 +1,4 @@
-// src/services/infinitepay.ts - VERSÃO PARA LINK INTEGRADO (SEM API)
 import { env } from '../config/env';
-import { logger } from '../utils/logger';
 
 export interface PaymentParams {
   items: Array<{
@@ -11,6 +9,7 @@ export interface PaymentParams {
   customer?: { name: string; email: string };
   orderNsu?: string;
   redirectUrl?: string;
+  webhookUrl?: string;
 }
 
 export interface PaymentResult {
@@ -37,34 +36,65 @@ export class InfinitePayService {
       throw new Error('Nenhum item informado');
     }
 
-    // 🔥 CONSTRUIR LINK INTEGRADO (URL, não chamada API)
-    const itemsParam = params.items.map(item => ({
-      name: item.description.substring(0, 100),
-      price: Math.round(item.unit_price * 100), // Centavos
-      quantity: item.quantity
-    }));
+    // 🔥 Payload conforme documentação
+    const payload: any = {
+      handle: this.handle,
+      items: params.items.map(item => ({
+        quantity: item.quantity,
+        price: Math.round(item.unit_price * 100),
+        description: item.description.substring(0, 200),
+      }))
+    };
 
-    // Gerar order_nsu se não fornecido
-    const order_nsu = params.orderNsu || `order-${Date.now()}`;
-    
-    // URL base do checkout InfinitePay
-    let link = `https://checkout.infinitepay.io/${this.handle}?items=${JSON.stringify(itemsParam)}&order_nsu=${order_nsu}`;
-    
-    // Adicionar redirect_url se fornecido
+    if (params.orderNsu) {
+      payload.order_nsu = params.orderNsu;
+    }
+
     if (params.redirectUrl) {
-      link += `&redirect_url=${encodeURIComponent(params.redirectUrl)}`;
-    }
-    
-    // Adicionar dados do cliente se fornecidos (opcional, agiliza checkout)
-    if (params.customer?.email) {
-      link += `&customer_email=${encodeURIComponent(params.customer.email)}`;
-    }
-    if (params.customer?.name) {
-      link += `&customer_name=${encodeURIComponent(params.customer.name)}`;
+      payload.redirect_url = params.redirectUrl;
     }
 
-    console.log('✅ Link de pagamento gerado:', link);
-    
-    return { link };
+    if (params.webhookUrl) {
+      payload.webhook_url = params.webhookUrl;
+    }
+
+    if (params.customer) {
+      payload.customer = params.customer;
+    }
+
+    console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+
+    try {
+      const response = await fetch('https://api.checkout.infinitepay.io/links', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      console.log('📥 Resposta COMPLETA:', JSON.stringify(data, null, 2));
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+
+      // 🔥 Verificar todos os possíveis campos que podem conter o link
+      const link = data.link || data.checkout_url || data.url || data.payment_url;
+      
+      if (!link) {
+        console.error('Resposta sem link. Dados recebidos:', data);
+        throw new Error('API não retornou link de pagamento');
+      }
+
+      console.log('✅ Link:', link);
+      return { link };
+
+    } catch (error: any) {
+      console.error('❌ Erro:', error.message);
+      throw new Error(`Erro ao criar pagamento: ${error.message}`);
+    }
   }
 }

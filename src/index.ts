@@ -1,81 +1,56 @@
 // src/index.ts
 import express from 'express';
-import os from 'os';
+import cors from 'cors';
 import { env } from './config/env';
-import { corsMiddleware } from './middleware/cors';
-import { securityHeaders, validateContentType } from './middleware/security';
-import { logger } from './utils/logger';
-import paymentsRouter from './routes/payments';
+import paymentsRouter from './routes/payments'; // ✅ Isso funciona se payments.ts tem "export default router"
 
 const app = express();
 
-// ====================== CONFIG ======================
-app.set('trust proxy', 1);
-
-// ====================== MIDDLEWARES ======================
-app.use(securityHeaders);
-app.use(corsMiddleware);
+// Middlewares
+app.use(cors());
 app.use(express.json({ limit: '1mb' }));
-app.use(validateContentType);
 
-// ====================== ROTAS ======================
+// Rotas
 app.use('/api/payments', paymentsRouter);
 
-// ====================== HEALTH CHECK SIMPLES ======================
+// Health check
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    env: env.NODE_ENV,
-    uptime: process.uptime(),
     timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
   });
 });
 
-// Redirect raiz
-app.get('/', (req, res) => res.redirect('/health'));
+app.get('/', (req, res) => {
+  res.json({
+    message: 'API InfinitePay rodando',
+    endpoints: {
+      create: 'POST /api/payments/create',
+      webhook: 'POST /api/payments/webhook',
+      orders: 'GET /api/payments/orders/:email',
+      diagnostico: 'GET /api/payments/diagnostico',
+    }
+  });
+});
 
-// ====================== 404 ======================
+// Tratamento de erro 404
 app.use((req, res) => {
   res.status(404).json({ error: 'Rota não encontrada' });
 });
 
-// ====================== ERROR HANDLER ======================
+// Tratamento de erro geral
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  logger.error('Erro não tratado', { 
-    error: err.message, 
-    path: req.path,
-    method: req.method,
-  });
-
-  res.status(500).json({ 
-    error: 'Erro interno do servidor' 
-  });
+  console.error('Erro:', err.message);
+  res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-// ====================== START SERVER ======================
-const server = app.listen(env.PORT, () => {
-  logger.info(`🚀 API rodando em http://localhost:${env.PORT} (${env.NODE_ENV})`);
-  logger.info(`📊 CPUs: ${os.cpus().length} | RAM: ${Math.round(os.totalmem() / 1024 ** 3)}GB`);
-  logger.info(`✅ Servidor pronto para receber requisições`);
+// Iniciar servidor
+const PORT = env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`✅ Health: http://localhost:${PORT}/health`);
+  console.log(`✅ Create: http://localhost:${PORT}/api/payments/create`);
 });
-
-// ====================== GRACEFUL SHUTDOWN ======================
-const shutdown = (signal: string) => {
-  logger.info(`${signal} recebido. Fechando servidor...`);
-  
-  server.close(() => {
-    logger.info('Servidor HTTP fechado com sucesso');
-    process.exit(0);
-  });
-
-  // Força shutdown após 8 segundos
-  setTimeout(() => {
-    logger.error('Shutdown forçado após timeout');
-    process.exit(1);
-  }, 8000);
-};
-
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;
