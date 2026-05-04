@@ -1,17 +1,23 @@
 {
   "compilerOptions": {
-    "target": "ES2020",                // Versão do JavaScript que será gerada
-    "module": "CommonJS",              // Tipo de módulo para Node
-    "rootDir": "src",                  // Pasta onde estão seus arquivos TS
-    "outDir": "dist",                  // Pasta onde os JS compilados serão gerados
-    "strict": true,                    // Ativa verificações rigorosas de tipo
-    "esModuleInterop": true,           // Compatibilidade com módulos CommonJS e ES
-    "skipLibCheck": true,              // Ignora checagem de tipos de bibliotecas
-    "forceConsistentCasingInFileNames": true, // Evita problemas de maiúsculas/minúsculas
-    "noImplicitAny": true,             // Força declarar tipos explicitamente
-    "resolveJsonModule": true,         // Permite importar arquivos JSON
-    "sourceMap": true                  // Gera arquivos .map para depuração
+    "target": "ES2020",
+
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "rootDir": "src",
+    "outDir": "dist",
+
+    "strict": true,
+    "noImplicitAny": false,
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true
   },
-  "include": ["src"],                  // Quais arquivos TS compilar
-  "exclude": ["node_modules", "dist"]  // Pastas que não serão compiladas
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }
