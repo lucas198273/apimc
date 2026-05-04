@@ -3,7 +3,7 @@ import cors from 'cors';
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://sofisticada.netlify.app',
+  'https://sofisticadamoda.com.br',
 ];
 
 export const corsMiddleware = cors({
